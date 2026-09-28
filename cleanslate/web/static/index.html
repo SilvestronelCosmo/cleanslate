@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="it" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CleanSlate — Local-First Footprint Audit & Unsubscriber</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header -->
+    <header class="navbar">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </div>
+        <div>
+          <span class="brand-name">CleanSlate</span>
+          <span class="brand-tag">LOCAL PRIVACY ENGINE</span>
+        </div>
+      </div>
+      <div class="nav-actions">
+        <button id="btn-load-demo" class="btn btn-outline">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          Carica Dati Demo
+        </button>
+        <a href="https://github.com/pietromey" target="_blank" class="btn btn-ghost">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+          </svg>
+          GitHub
+        </a>
+      </div>
+    </header>
+
+    <!-- Hero / Headline -->
+    <main class="container">
+      <section class="hero-section">
+        <div class="hero-pill">Zero Cloud Telemetry • 100% Client/Local Execution</div>
+        <h1 class="hero-title">Audit del tuo footprint digitale,<br>disiscrizione e diritto all'oblio.</h1>
+        <p class="hero-desc">
+          Trova tutti gli account creati, gli abbonamenti attivi e le newsletter collegate alla tua email.
+          Disiscriviti all'istante con protocollo RFC 8058 o richiedi la cancellazione totale tramite Articolo 17 GDPR.
+        </p>
+      </section>
+
+      <!-- Scan Mode Selector -->
+      <section class="scan-card">
+        <div class="tabs-header">
+          <button class="tab-btn active" data-tab="tab-osint">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            OSINT Footprint (Zero Password)
+          </button>
+          <button class="tab-btn" data-tab="tab-imap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="4" width="20" height="16" rx="2"/>
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+            </svg>
+            Audit Inbox Locale (IMAP)
+          </button>
+          <button class="tab-btn" data-tab="tab-mbox">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Carica .MBOX / .EML Offline
+          </button>
+        </div>
+
+        <div class="tabs-body">
+          <!-- OSINT Tab -->
+          <div id="tab-osint" class="tab-pane active">
+            <form id="form-osint" class="scan-form">
+              <div class="form-group flex-1">
+                <label for="osint-email">Indirizzo Email da analizzare</label>
+                <div class="input-wrapper">
+                  <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/>
+                  </svg>
+                  <input type="email" id="osint-email" placeholder="nome@esempio.com" required>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary" id="btn-osint-submit">
+                <span>Avvia Scansione OSINT</span>
+              </button>
+            </form>
+            <p class="tab-hint">
+              💡 Non richiede credenziali. Interroga in parallelo gli endpoint pubblici dei servizi per rilevare account già esistenti.
+            </p>
+          </div>
+
+          <!-- IMAP Tab -->
+          <div id="tab-imap" class="tab-pane">
+            <form id="form-imap" class="scan-grid-form">
+              <div class="form-group">
+                <label for="imap-host">Server IMAP</label>
+                <input type="text" id="imap-host" value="imap.gmail.com" required>
+              </div>
+              <div class="form-group">
+                <label for="imap-port">Porta</label>
+                <input type="number" id="imap-port" value="993" required>
+              </div>
+              <div class="form-group">
+                <label for="imap-user">Email / Username</label>
+                <input type="email" id="imap-user" placeholder="tuamail@gmail.com" required>
+              </div>
+              <div class="form-group">
+                <label for="imap-pass">App Password (SSL)</label>
+                <input type="password" id="imap-pass" placeholder="Password per app (non la password principale)" required>
+              </div>
+              <div class="form-actions-full">
+                <button type="submit" class="btn btn-primary" id="btn-imap-submit">
+                  <span>Connetti & Analizza Inbox</span>
+                </button>
+              </div>
+            </form>
+            <p class="tab-hint">
+              🔒 Scansione 100% locale: legge esclusivamente gli header (Subject, From, List-Unsubscribe) senza salvare messaggi sul disco.
+            </p>
+          </div>
+
+          <!-- MBOX Tab -->
+          <div id="tab-mbox" class="tab-pane">
+            <div id="dropzone" class="dropzone">
+              <input type="file" id="mbox-file-input" accept=".mbox,.eml" style="display: none;">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/>
+                <path d="M12 12v9"/>
+                <path d="m16 16-4-4-4 4"/>
+              </svg>
+              <div class="dropzone-text">
+                <strong>Trascina qui il file .mbox o .eml</strong> oppure <span class="highlight">seleziona dal computer</span>
+              </div>
+              <span class="dropzone-sub">Ideale per esportazioni Google Takeout o archivi Thunderbird</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Status Indicator -->
+      <div id="status-card" class="status-card" style="display: none;">
+        <div class="spinner"></div>
+        <div class="status-content">
+          <span id="status-text" class="status-title">Analisi in corso...</span>
+          <span id="status-sub" class="status-sub">Interrogazione endpoint e parsing header</span>
+        </div>
+      </div>
+
+      <!-- Dashboard Results Section -->
+      <section id="results-section" class="results-section" style="display: none;">
+        <!-- Metrics Grid -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-header">
+              <span>Totale Servizi Rilevati</span>
+              <div class="metric-icon icon-cyan">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+              </div>
+            </div>
+            <div class="metric-value" id="val-total">0</div>
+            <div class="metric-sub" id="sub-target-email">target@email.com</div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span>Account Registrati</span>
+              <div class="metric-icon icon-blue">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+            </div>
+            <div class="metric-value" id="val-accounts">0</div>
+            <div class="metric-sub">Accessi confermati o welcome email</div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span>Abbonamenti / Billing</span>
+              <div class="metric-icon icon-amber">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                  <line x1="1" y1="10" x2="23" y2="10"/>
+                </svg>
+              </div>
+            </div>
+            <div class="metric-value" id="val-subscriptions">0</div>
+            <div class="metric-sub">Ricevute periodiche o pagamenti attivi</div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span>Newsletter / Liste</span>
+              <div class="metric-icon icon-purple">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+              </div>
+            </div>
+            <div class="metric-value" id="val-newsletters">0</div>
+            <div class="metric-sub">Con supporto RFC 8058 1-click</div>
+          </div>
+        </div>
+
+        <!-- Filter and Search Bar -->
+        <div class="table-controls">
+          <div class="filter-pills">
+            <button class="pill active" data-filter="all">Tutti (<span id="count-all">0</span>)</button>
+            <button class="pill" data-filter="account">Account (<span id="count-accounts">0</span>)</button>
+            <button class="pill" data-filter="subscription">Abbonamenti (<span id="count-subs">0</span>)</button>
+            <button class="pill" data-filter="newsletter">Newsletter (<span id="count-news">0</span>)</button>
+          </div>
+          <div class="search-input-wrap">
+            <input type="text" id="table-search" placeholder="Cerca servizio o dominio...">
+          </div>
+        </div>
+
+        <!-- Discovered Services List -->
+        <div class="services-list" id="services-container">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+    </main>
+
+    <!-- GDPR Request Modal -->
+    <div id="gdpr-modal" class="modal-backdrop" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div>
+            <h3 class="modal-title">Generatore Richiesta GDPR Art. 17</h3>
+            <p class="modal-sub">Esercizio formale del Diritto all'Oblio (Cancellazione Definitiva)</p>
+          </div>
+          <button id="btn-close-modal" class="btn-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-grid">
+            <div class="form-group">
+              <label for="gdpr-user-name">Il tuo Nome e Cognome</label>
+              <input type="text" id="gdpr-user-name" value="Mario Rossi">
+            </div>
+            <div class="form-group">
+              <label for="gdpr-lang">Lingua Lettera</label>
+              <select id="gdpr-lang">
+                <option value="it" selected>Italiano (Aziende UE / Italia)</option>
+                <option value="en">Inglese (Aziende Globali / US)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Destinatario (DPO / Privacy)</label>
+            <input type="text" id="gdpr-dpo-field" readonly class="input-readonly">
+          </div>
+
+          <div class="form-group">
+            <label>Oggetto Email</label>
+            <input type="text" id="gdpr-subject-field" readonly class="input-readonly">
+          </div>
+
+          <div class="form-group">
+            <label>Testo Legale Articolo 17 GDPR</label>
+            <textarea id="gdpr-body-field" rows="9" readonly class="textarea-readonly"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="btn-copy-gdpr" class="btn btn-outline">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            Copia negli Appunti
+          </button>
+          <a id="btn-open-mailto" href="#" class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+            Apri nel Client di Posta
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast" style="display: none;"></div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
