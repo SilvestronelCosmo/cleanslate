@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CleanSlate — Local-First Footprint Audit & Unsubscriber</title>
+  <title>CleanSlate — Local Footprint Audit & Unsubscriber</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,33 +22,34 @@
         </div>
         <div>
           <span class="brand-name">CleanSlate</span>
-          <span class="brand-tag">LOCAL PRIVACY ENGINE</span>
+          <span class="brand-tag">NATIVE DESKTOP • LOCAL ONLY</span>
         </div>
       </div>
       <div class="nav-actions">
-        <button id="btn-load-demo" class="btn btn-outline">
+        <button id="btn-open-global-guide" class="btn btn-outline">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          Guida & Istruzioni
+        </button>
+        <button id="btn-load-demo" class="btn btn-ghost">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
-          Carica Dati Demo
+          Dati Demo
         </button>
-        <a href="https://github.com/pietromey" target="_blank" class="btn btn-ghost">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
-          </svg>
-          GitHub
-        </a>
       </div>
     </header>
 
-    <!-- Hero / Headline -->
+    <!-- Main Content -->
     <main class="container">
       <section class="hero-section">
-        <div class="hero-pill">Zero Cloud Telemetry • 100% Client/Local Execution</div>
-        <h1 class="hero-title">Audit del tuo footprint digitale,<br>disiscrizione e diritto all'oblio.</h1>
+        <div class="hero-pill">Audit Locale • Zero Dati nel Cloud • GDPR Compliant</div>
+        <h1 class="hero-title">Trova i tuoi account dimenticati,<br>disiscriviti ed elimina i tuoi dati.</h1>
         <p class="hero-desc">
-          Trova tutti gli account creati, gli abbonamenti attivi e le newsletter collegate alla tua email.
-          Disiscriviti all'istante con protocollo RFC 8058 o richiedi la cancellazione totale tramite Articolo 17 GDPR.
+          Analizza il tuo footprint digitale su piattaforme web reali. Disiscrizione 1-click conforme a RFC 8058 e generazione automatica di richieste di cancellazione Articolo 17 GDPR.
         </p>
       </section>
 
@@ -60,14 +61,14 @@
               <circle cx="11" cy="11" r="8"/>
               <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            OSINT Footprint (Zero Password)
+            1. OSINT Web Probing (Zero Password)
           </button>
           <button class="tab-btn" data-tab="tab-imap">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="4" width="20" height="16" rx="2"/>
               <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
             </svg>
-            Audit Inbox Locale (IMAP)
+            2. Audit Inbox Locale (IMAP)
           </button>
           <button class="tab-btn" data-tab="tab-mbox">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -75,21 +76,28 @@
               <polyline points="17 8 12 3 7 8"/>
               <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            Carica .MBOX / .EML Offline
+            3. Archivio Offline (.MBOX / .EML)
           </button>
         </div>
 
         <div class="tabs-body">
           <!-- OSINT Tab -->
           <div id="tab-osint" class="tab-pane active">
+            <div class="tab-helper-bar">
+              <span>Scansione esterna non invasiva: verifica istantanea senza accedere alla casella.</span>
+              <button class="guide-trigger-btn" id="btn-guide-osint">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                Come funziona la scansione OSINT?
+              </button>
+            </div>
             <form id="form-osint" class="scan-form">
               <div class="form-group flex-1">
-                <label for="osint-email">Indirizzo Email da analizzare</label>
+                <label for="osint-email">Indirizzo Email Reale</label>
                 <div class="input-wrapper">
                   <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/>
                   </svg>
-                  <input type="email" id="osint-email" placeholder="nome@esempio.com" required>
+                  <input type="email" id="osint-email" placeholder="esempio: tuamail@gmail.com" required>
                 </div>
               </div>
               <button type="submit" class="btn btn-primary" id="btn-osint-submit">
@@ -97,45 +105,77 @@
               </button>
             </form>
             <p class="tab-hint">
-              💡 Non richiede credenziali. Interroga in parallelo gli endpoint pubblici dei servizi per rilevare account già esistenti.
+              ⚡ Interroga in parallelo le registrazioni pubbliche su Twitter/X, Spotify, Duolingo, GitHub, Gravatar, Discord e altre piattaforme.
             </p>
           </div>
 
           <!-- IMAP Tab -->
           <div id="tab-imap" class="tab-pane">
+            <div class="tab-helper-bar">
+              <span>Pre-configurazione rapida provider:</span>
+              <div class="provider-presets">
+                <button type="button" class="preset-btn active" data-preset="gmail">Gmail</button>
+                <button type="button" class="preset-btn" data-preset="outlook">Outlook / Hotmail</button>
+                <button type="button" class="preset-btn" data-preset="icloud">Apple iCloud</button>
+                <button type="button" class="preset-btn" data-preset="yahoo">Yahoo</button>
+              </div>
+              <button class="guide-trigger-btn ml-auto" id="btn-guide-apppassword">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                Come creare la Password per le App
+              </button>
+            </div>
+
             <form id="form-imap" class="scan-grid-form">
               <div class="form-group">
                 <label for="imap-host">Server IMAP</label>
                 <input type="text" id="imap-host" value="imap.gmail.com" required>
               </div>
               <div class="form-group">
-                <label for="imap-port">Porta</label>
+                <label for="imap-port">Porta SSL</label>
                 <input type="number" id="imap-port" value="993" required>
               </div>
               <div class="form-group">
-                <label for="imap-user">Email / Username</label>
-                <input type="email" id="imap-user" placeholder="tuamail@gmail.com" required>
+                <label for="imap-user">Indirizzo Email</label>
+                <input type="email" id="imap-user" placeholder="tuonome@gmail.com" required>
               </div>
               <div class="form-group">
-                <label for="imap-pass">App Password (SSL)</label>
-                <input type="password" id="imap-pass" placeholder="Password per app (non la password principale)" required>
+                <div class="label-with-action">
+                  <label for="imap-pass">Password per le App (16 caratteri)</label>
+                  <a href="https://myaccount.google.com/apppasswords" target="_blank" class="field-help-link" id="link-provider-apppass">Crea Password Google &rarr;</a>
+                </div>
+                <input type="password" id="imap-pass" placeholder="es. abcd efgh ijkl mnop" required autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label for="imap-limit">Profondità Scansione</label>
+                <select id="imap-limit">
+                  <option value="150" selected>Veloce (Ultime 150 email - ~5 sec)</option>
+                  <option value="350">Standard (Ultime 350 email - ~10 sec)</option>
+                  <option value="750">Approfondita (Ultime 750 email - ~20 sec)</option>
+                </select>
               </div>
               <div class="form-actions-full">
                 <button type="submit" class="btn btn-primary" id="btn-imap-submit">
-                  <span>Connetti & Analizza Inbox</span>
+                  <span>Connetti & Analizza Inbox Reale</span>
                 </button>
               </div>
             </form>
             <p class="tab-hint">
-              🔒 Scansione 100% locale: legge esclusivamente gli header (Subject, From, List-Unsubscribe) senza salvare messaggi sul disco.
+              🔒 <strong>Massima Privacy:</strong> I messaggi non vengono scaricati né salvati. CleanSlate legge solo gli header (From, Subject, List-Unsubscribe) in memoria locale per rilevare welcome email e ricevute.
             </p>
           </div>
 
           <!-- MBOX Tab -->
           <div id="tab-mbox" class="tab-pane">
+            <div class="tab-helper-bar">
+              <span>Nessuna connessione di rete richiesta: carica un archivio scaricato sul Mac.</span>
+              <button class="guide-trigger-btn" id="btn-guide-takeout">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                Come scaricare archivio da Google Takeout
+              </button>
+            </div>
             <div id="dropzone" class="dropzone">
               <input type="file" id="mbox-file-input" accept=".mbox,.eml" style="display: none;">
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/>
                 <path d="M12 12v9"/>
                 <path d="m16 16-4-4-4 4"/>
@@ -143,7 +183,7 @@
               <div class="dropzone-text">
                 <strong>Trascina qui il file .mbox o .eml</strong> oppure <span class="highlight">seleziona dal computer</span>
               </div>
-              <span class="dropzone-sub">Ideale per esportazioni Google Takeout o archivi Thunderbird</span>
+              <span class="dropzone-sub">Ideale per esportazioni Google Takeout, archivi Apple Mail o Thunderbird</span>
             </div>
           </div>
         </div>
@@ -193,7 +233,7 @@
 
           <div class="metric-card">
             <div class="metric-header">
-              <span>Abbonamenti / Billing</span>
+              <span>Abbonamenti / Ricevute</span>
               <div class="metric-icon icon-amber">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
@@ -235,10 +275,115 @@
 
         <!-- Discovered Services List -->
         <div class="services-list" id="services-container">
-          <!-- Populated by JS -->
+          <!-- Populated dynamically by app.js -->
         </div>
       </section>
     </main>
+
+    <!-- GUIDANCE MODAL: App Password Setup -->
+    <div id="modal-apppass-guide" class="modal-backdrop" style="display: none;">
+      <div class="modal-card modal-lg">
+        <div class="modal-header">
+          <div>
+            <h3 class="modal-title">Come creare una Password per le App</h3>
+            <p class="modal-sub">Istruzioni passo-passo per Gmail, Outlook, iCloud e Yahoo</p>
+          </div>
+          <button class="btn-icon btn-close-guide">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="guide-steps-container">
+            <div class="guide-box">
+              <h4>🔴 Google / Gmail</h4>
+              <p>Per motivi di sicurezza, Google non consente l'accesso con la tua normale password alle app IMAP. Occorre una password specifica di 16 caratteri:</p>
+              <ol class="guide-ol">
+                <li>Apri il link: <a href="https://myaccount.google.com/apppasswords" target="_blank" class="highlight-link">myaccount.google.com/apppasswords</a> (accedi con il tuo account Google se richiesto).</li>
+                <li>Assicurati che la <strong>Verifica in due passaggi (2FA)</strong> sia attiva sul tuo account.</li>
+                <li>Nel campo nome dell'app, scrivi <strong>CleanSlate</strong> e clicca su <strong>Crea</strong>.</li>
+                <li>Google genererà una password gialla di 16 caratteri (es. <code>abcd efgh ijkl mnop</code>).</li>
+                <li>Incollala direttamente nel campo <strong>App Password</strong> di CleanSlate.</li>
+              </ol>
+            </div>
+
+            <div class="guide-box">
+              <h4>🔵 Microsoft Outlook / Hotmail</h4>
+              <ol class="guide-ol">
+                <li>Accedi a <a href="https://account.live.com/proofs/AppPassword" target="_blank" class="highlight-link">account.live.com/proofs/AppPassword</a>.</li>
+                <li>Seleziona <strong>Crea una nuova password per le app</strong>.</li>
+                <li>Copia la password generata e usa server <code>outlook.office365.com</code> (porta <code>993</code>).</li>
+              </ol>
+            </div>
+
+            <div class="guide-box">
+              <h4>⚪ Apple iCloud</h4>
+              <ol class="guide-ol">
+                <li>Accedi a <a href="https://appleid.apple.com" target="_blank" class="highlight-link">appleid.apple.com</a>.</li>
+                <li>Vai nella sezione <strong>Accesso e sicurezza</strong> &rarr; <strong>Password specifiche per le app</strong>.</li>
+                <li>Genera la password per CleanSlate e usa server <code>imap.mail.me.com</code> (porta <code>993</code>).</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary btn-close-guide">Ho capito, chiudi</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GUIDANCE MODAL: OSINT Probing -->
+    <div id="modal-osint-guide" class="modal-backdrop" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div>
+            <h3 class="modal-title">Come funziona la Scansione OSINT</h3>
+            <p class="modal-sub">Riconoscimento footprint senza credenziali né accesso all'inbox</p>
+          </div>
+          <button class="btn-icon btn-close-guide">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p>La scansione OSINT (Open Source Intelligence) è una tecnica non invasiva:</p>
+          <ul class="guide-ul">
+            <li><strong>Nessun accesso alla posta:</strong> non ti verrà mai chiesta alcuna password o autorizzazione.</li>
+            <li><strong>Interrogazione endpoint pubblici:</strong> interroga le API pubbliche di registrazione e validazione usate dai siti web (Twitter, Spotify, Duolingo, GitHub, Gravatar, ecc.).</li>
+            <li><strong>Verifica presenza:</strong> quando una piattaforma risponde che l'email è già registrata, CleanSlate la identifica e recupera i link di cancellazione e contatti DPO.</li>
+            <li><strong>Velocità:</strong> tutti i controlli vengono eseguiti in parallelo asincrono in circa 3-5 secondi.</li>
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary btn-close-guide">Chiudi</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GUIDANCE MODAL: Google Takeout -->
+    <div id="modal-takeout-guide" class="modal-backdrop" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div>
+            <h3 class="modal-title">Esportazione Offline Google Takeout</h3>
+            <p class="modal-sub">Come analizzare la tua posta al 100% offline senza collegare account</p>
+          </div>
+          <button class="btn-icon btn-close-guide">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <ol class="guide-ol">
+            <li>Vai su <a href="https://takeout.google.com" target="_blank" class="highlight-link">takeout.google.com</a>.</li>
+            <li>Clicca su <strong>Deseleziona tutto</strong> e seleziona esclusivamente <strong>Posta (Gmail)</strong>.</li>
+            <li>Clicca su <strong>Passaggio successivo</strong> e conferma la creazione dell'archivio.</li>
+            <li>Una volta scaricato il file <code>.zip</code>, estrai il file <code>.mbox</code>.</li>
+            <li>Trascina il file <code>.mbox</code> nella schermata di CleanSlate. La scansione avverrà istantaneamente in locale senza nessuna connessione internet.</li>
+          </ol>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary btn-close-guide">Chiudi</button>
+        </div>
+      </div>
+    </div>
 
     <!-- GDPR Request Modal -->
     <div id="gdpr-modal" class="modal-backdrop" style="display: none;">
@@ -272,12 +417,12 @@
           </div>
 
           <div class="form-group">
-            <label>Destinatario (DPO / Privacy)</label>
+            <label>Destinatario Ufficiale (DPO / Privacy)</label>
             <input type="text" id="gdpr-dpo-field" readonly class="input-readonly">
           </div>
 
           <div class="form-group">
-            <label>Oggetto Email</label>
+            <label>Oggetto Email Legale</label>
             <input type="text" id="gdpr-subject-field" readonly class="input-readonly">
           </div>
 

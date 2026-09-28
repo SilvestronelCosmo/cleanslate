@@ -2,16 +2,39 @@
 
 import hashlib
 import asyncio
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import httpx
+import trio
+import holehe.core
 
 from cleanslate.core.models import ServiceEntry, ServiceCategory, DeletionDifficulty
-from cleanslate.core.directory import lookup_service
+from cleanslate.core.directory import lookup_service, normalize_domain
 
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
 }
+
+# High-confidence platforms from Holehe to audit in parallel
+TARGET_HOLEHE_MODULES = [
+    "twitter",
+    "github",
+    "spotify",
+    "pinterest",
+    "discord",
+    "deliveroo",
+    "patreon",
+    "soundcloud",
+    "lastfm",
+    "snapchat",
+    "strava",
+    "docker",
+    "vimeo",
+    "tumblr",
+    "protonmail",
+    "chess",
+    "duolingo",
+]
 
 
 async def check_gravatar(client: httpx.AsyncClient, email: str) -> Optional[ServiceEntry]:
@@ -21,20 +44,20 @@ async def check_gravatar(client: httpx.AsyncClient, email: str) -> Optional[Serv
     url = f"https://en.gravatar.com/{email_hash}.json"
     
     try:
-        resp = await client.get(url, timeout=5.0)
+        resp = await client.get(url, timeout=4.0)
         if resp.status_code == 200:
             data = resp.json()
             entry = data.get("entry", [{}])[0]
             display_name = entry.get("displayName") or entry.get("preferredUsername") or "Utente Gravatar"
             return ServiceEntry(
-                name="Gravatar / Automattic",
+                name="Gravatar / WordPress",
                 domain="gravatar.com",
                 category=ServiceCategory.ACCOUNT,
                 found_via="osint",
                 difficulty=DeletionDifficulty.EASY,
                 delete_url="https://en.gravatar.com/support/deleting-your-account/",
                 dpo_email="privacy@automattic.com",
-                notes="Account collegato all'ecosistema WordPress.com.",
+                notes="Account collegato all'ecosistema WordPress.com e Automattic.",
                 details={"username": display_name, "profile_url": entry.get("profileUrl")},
             )
     except Exception:
@@ -46,7 +69,7 @@ async def check_duolingo(client: httpx.AsyncClient, email: str) -> Optional[Serv
     """Check if email is registered on Duolingo."""
     url = f"https://www.duolingo.com/2017-06-30/users?email={email.strip().lower()}"
     try:
-        resp = await client.get(url, headers=DEFAULT_HEADERS, timeout=5.0)
+        resp = await client.get(url, headers=DEFAULT_HEADERS, timeout=4.0)
         if resp.status_code == 200:
             data = resp.json()
             users = data.get("users", [])
@@ -65,7 +88,6 @@ async def check_duolingo(client: httpx.AsyncClient, email: str) -> Optional[Serv
                     details={
                         "username": user.get("username"),
                         "streak": user.get("streak"),
-                        "learning_language": user.get("learningLanguage"),
                     },
                 )
     except Exception:
@@ -78,7 +100,7 @@ async def check_github(client: httpx.AsyncClient, email: str) -> Optional[Servic
     url = f"https://api.github.com/search/users?q={email.strip().lower()}+in:email"
     headers = {**DEFAULT_HEADERS, "Accept": "application/vnd.github.v3+json"}
     try:
-        resp = await client.get(url, headers=headers, timeout=5.0)
+        resp = await client.get(url, headers=headers, timeout=4.0)
         if resp.status_code == 200:
             data = resp.json()
             if data.get("total_count", 0) > 0:
@@ -103,77 +125,14 @@ async def check_github(client: httpx.AsyncClient, email: str) -> Optional[Servic
     return None
 
 
-async def check_chess_com(client: httpx.AsyncClient, email: str) -> Optional[ServiceEntry]:
-    """Check Chess.com account existence."""
-    url = "https://www.chess.com/service/registration/is-email-available"
-    try:
-        resp = await client.post(
-            url,
-            json={"email": email.strip().lower()},
-            headers={**DEFAULT_HEADERS, "Content-Type": "application/json"},
-            timeout=5.0,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            # If isAvailable is False, the email is already registered on Chess.com
-            if data.get("isAvailable") is False:
-                return ServiceEntry(
-                    name="Chess.com",
-                    domain="chess.com",
-                    category=ServiceCategory.ACCOUNT,
-                    found_via="osint",
-                    difficulty=DeletionDifficulty.EASY,
-                    delete_url="https://www.chess.com/settings/manage-account",
-                    dpo_email="privacy@chess.com",
-                    notes="Cancellazione disponibile direttamente nelle impostazioni account.",
-                )
-    except Exception:
-        pass
-    return None
-
-
-async def check_adobe(client: httpx.AsyncClient, email: str) -> Optional[ServiceEntry]:
-    """Check Adobe account presence via identity endpoint."""
-    url = "https://auth.services.adobe.com/signin/v2/users/accounts"
-    try:
-        resp = await client.post(
-            url,
-            json={"username": email.strip().lower()},
-            headers={
-                **DEFAULT_HEADERS,
-                "Content-Type": "application/json",
-                "x-adobe-app-id": "adobedotcom2",
-            },
-            timeout=5.0,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            # If account exists, Adobe returns user authentication profile
-            if data.get("accountExists") is True or "userId" in data:
-                dir_info = lookup_service("adobe.com") or {}
-                return ServiceEntry(
-                    name="Adobe",
-                    domain="adobe.com",
-                    category=ServiceCategory.ACCOUNT,
-                    found_via="osint",
-                    difficulty=dir_info.get("difficulty", DeletionDifficulty.HARD),
-                    delete_url=dir_info.get("delete_url"),
-                    dpo_email=dir_info.get("dpo_email"),
-                    notes=dir_info.get("notes"),
-                )
-    except Exception:
-        pass
-    return None
-
-
 async def check_spotify(client: httpx.AsyncClient, email: str) -> Optional[ServiceEntry]:
     """Check Spotify registration via public signup validator endpoint."""
     url = f"https://spclient.wg.spotify.com/signup/public/v1/account?validate=1&email={email.strip().lower()}"
     try:
-        resp = await client.get(url, headers=DEFAULT_HEADERS, timeout=5.0)
+        resp = await client.get(url, headers=DEFAULT_HEADERS, timeout=4.0)
         if resp.status_code == 200:
             data = resp.json()
-            # status 20 indicates email is already taken / exists
+            # status 20 indicates email is already taken / registered
             if data.get("status") == 20 or "email_exists" in str(data):
                 dir_info = lookup_service("spotify.com") or {}
                 return ServiceEntry(
@@ -191,34 +150,78 @@ async def check_spotify(client: httpx.AsyncClient, email: str) -> Optional[Servi
     return None
 
 
-async def check_haveibeenpwned_breaches(client: httpx.AsyncClient, email: str) -> List[ServiceEntry]:
-    """
-    Check for public data breaches associated with the email address.
-    Uses public breach catalogs and indicators.
-    """
-    breaches_found: List[ServiceEntry] = []
-    # Known massive historical breaches with public domain indicators
-    # In live mode with HIBP API key, queries API; otherwise performs lookup on verified public leak indexes
-    return breaches_found
+def _run_holehe_sync(email: str) -> List[Dict[str, Any]]:
+    """Trio worker running Holehe modules."""
+    async def worker():
+        out = []
+        modules = holehe.core.import_submodules("holehe.modules")
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            for mod_name, mod in modules.items():
+                short = mod_name.split(".")[-1]
+                if short in TARGET_HOLEHE_MODULES:
+                    func = getattr(mod, short, None)
+                    if func:
+                        try:
+                            await func(email, client, out)
+                        except Exception:
+                            pass
+        return out
+
+    try:
+        return trio.run(worker)
+    except Exception:
+        return []
 
 
 async def run_osint_scan(email: str) -> List[ServiceEntry]:
-    """Run all asynchronous OSINT probes against target email in parallel."""
+    """Run native parallel probes + Holehe module suite against target email."""
     results: List[ServiceEntry] = []
-    
-    async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
-        probes = [
+    seen_domains = set()
+
+    # 1. Native high-speed async probes
+    async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
+        native_probes = [
             check_gravatar(client, email),
             check_duolingo(client, email),
             check_github(client, email),
-            check_chess_com(client, email),
-            check_adobe(client, email),
             check_spotify(client, email),
         ]
-        
-        probe_results = await asyncio.gather(*probes, return_exceptions=True)
+        probe_results = await asyncio.gather(*native_probes, return_exceptions=True)
         for res in probe_results:
-            if isinstance(res, ServiceEntry):
+            if isinstance(res, ServiceEntry) and res.domain not in seen_domains:
                 results.append(res)
-                
+                seen_domains.add(res.domain)
+
+    # 2. Run Holehe module suite in thread
+    holehe_raw = await asyncio.to_thread(_run_holehe_sync, email)
+    for item in holehe_raw:
+        if item.get("exists") is True:
+            domain = normalize_domain(item.get("domain") or item.get("name") + ".com")
+            if domain in seen_domains:
+                continue
+
+            dir_info = lookup_service(domain) or lookup_service(item.get("name")) or {}
+            name = dir_info.get("name") or item.get("name").capitalize()
+            difficulty = dir_info.get("difficulty", DeletionDifficulty.UNKNOWN)
+            delete_url = dir_info.get("delete_url")
+            dpo_email = dir_info.get("dpo_email")
+            notes = dir_info.get("notes") or "Account attivo confermato da probe API endpoint."
+
+            entry = ServiceEntry(
+                name=name,
+                domain=domain,
+                category=ServiceCategory.ACCOUNT,
+                found_via="osint",
+                difficulty=difficulty,
+                delete_url=delete_url,
+                dpo_email=dpo_email,
+                notes=notes,
+                details={
+                    "phone_linked": bool(item.get("phoneNumber")),
+                    "recovery_email": item.get("emailrecovery"),
+                },
+            )
+            results.append(entry)
+            seen_domains.add(domain)
+
     return results

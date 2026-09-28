@@ -22,16 +22,108 @@ const tableSearch = document.getElementById('table-search');
 const filterPills = document.querySelectorAll('.pill');
 const toastEl = document.getElementById('toast');
 
-// GDPR Modal Elements
-const gdprModal = document.getElementById('gdpr-modal');
-const btnCloseModal = document.getElementById('btn-close-modal');
-const gdprUserName = document.getElementById('gdpr-user-name');
-const gdprLang = document.getElementById('gdpr-lang');
-const gdprDpoField = document.getElementById('gdpr-dpo-field');
-const gdprSubjectField = document.getElementById('gdpr-subject-field');
-const gdprBodyField = document.getElementById('gdpr-body-field');
-const btnCopyGdpr = document.getElementById('btn-copy-gdpr');
-const btnOpenMailto = document.getElementById('btn-open-mailto');
+// Guidance Modals Elements
+const modalAppPass = document.getElementById('modal-apppass-guide');
+const modalOsint = document.getElementById('modal-osint-guide');
+const modalTakeout = document.getElementById('modal-takeout-guide');
+const btnOpenGlobalGuide = document.getElementById('btn-open-global-guide');
+const btnGuideOsint = document.getElementById('btn-guide-osint');
+const btnGuideAppPassword = document.getElementById('btn-guide-apppassword');
+const btnGuideTakeout = document.getElementById('btn-guide-takeout');
+const closeGuideBtns = document.querySelectorAll('.btn-close-guide');
+
+// Provider presets
+const presetBtns = document.querySelectorAll('.preset-btn');
+const imapHost = document.getElementById('imap-host');
+const imapPort = document.getElementById('imap-port');
+const imapUser = document.getElementById('imap-user');
+const linkProviderAppPass = document.getElementById('link-provider-apppass');
+
+const PROVIDER_CONFIGS = {
+  gmail: {
+    host: 'imap.gmail.com',
+    port: 993,
+    placeholder: 'tuonome@gmail.com',
+    linkText: 'Crea Password Google →',
+    linkUrl: 'https://myaccount.google.com/apppasswords',
+  },
+  outlook: {
+    host: 'outlook.office365.com',
+    port: 993,
+    placeholder: 'tuonome@outlook.com',
+    linkText: 'Crea Password Microsoft →',
+    linkUrl: 'https://account.live.com/proofs/AppPassword',
+  },
+  icloud: {
+    host: 'imap.mail.me.com',
+    port: 993,
+    placeholder: 'tuonome@icloud.com',
+    linkText: 'Crea Password Apple →',
+    linkUrl: 'https://appleid.apple.com',
+  },
+  yahoo: {
+    host: 'imap.mail.yahoo.com',
+    port: 993,
+    placeholder: 'tuonome@yahoo.com',
+    linkText: 'Crea Password Yahoo →',
+    linkUrl: 'https://login.yahoo.com/account/security',
+  },
+};
+
+// Preset switching
+presetBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    presetBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const p = PROVIDER_CONFIGS[btn.dataset.preset];
+    if (p) {
+      imapHost.value = p.host;
+      imapPort.value = p.port;
+      imapUser.placeholder = p.placeholder;
+      linkProviderAppPass.textContent = p.linkText;
+      linkProviderAppPass.href = p.linkUrl;
+    }
+  });
+});
+
+// Guidance Modals Open/Close
+btnOpenGlobalGuide.addEventListener('click', () => {
+  modalAppPass.style.display = 'flex';
+});
+
+if (btnGuideOsint) {
+  btnGuideOsint.addEventListener('click', () => {
+    modalOsint.style.display = 'flex';
+  });
+}
+
+if (btnGuideAppPassword) {
+  btnGuideAppPassword.addEventListener('click', () => {
+    modalAppPass.style.display = 'flex';
+  });
+}
+
+if (btnGuideTakeout) {
+  btnGuideTakeout.addEventListener('click', () => {
+    modalTakeout.style.display = 'flex';
+  });
+}
+
+closeGuideBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    modalAppPass.style.display = 'none';
+    modalOsint.style.display = 'none';
+    modalTakeout.style.display = 'none';
+  });
+});
+
+[modalAppPass, modalOsint, modalTakeout].forEach(m => {
+  if (m) {
+    m.addEventListener('click', (e) => {
+      if (e.target === m) m.style.display = 'none';
+    });
+  }
+});
 
 // Tab Navigation
 tabBtns.forEach(btn => {
@@ -64,14 +156,14 @@ function setLoading(loading, title = 'Analisi in corso...', subtitle = 'Interrog
   }
 }
 
-// OSINT Form
+// OSINT Form (Real Discovery)
 const formOsint = document.getElementById('form-osint');
 formOsint.addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = document.getElementById('osint-email').value.trim();
   if (!email) return;
 
-  setLoading(true, 'Scansione OSINT in corso...', `Verifica registrazione per ${email} su decine di servizi web`);
+  setLoading(true, 'Scansione OSINT reale in corso...', `Verifica registrazione per ${email} su Twitter/X, Duolingo, GitHub, Spotify e 30+ piattaforme`);
   resultsSection.style.display = 'none';
 
   try {
@@ -88,31 +180,32 @@ formOsint.addEventListener('submit', async (e) => {
 
     const data = await res.json();
     renderResults(data);
-    showToast(`Scansione OSINT completata: trovati ${data.total_services} account.`);
+    showToast(`Scansione OSINT completata: trovati ${data.total_services} account reali.`);
   } catch (err) {
-    alert(`Errore: ${err.message}`);
+    alert(`Errore scansione: ${err.message}`);
   } finally {
     setLoading(false);
   }
 });
 
-// IMAP Form
+// IMAP Form (Real Inbox)
 const formImap = document.getElementById('form-imap');
 formImap.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const host = document.getElementById('imap-host').value.trim();
-  const port = parseInt(document.getElementById('imap-port').value, 10);
-  const username = document.getElementById('imap-user').value.trim();
+  const host = imapHost.value.trim();
+  const port = parseInt(imapPort.value, 10);
+  const username = imapUser.value.trim();
   const password = document.getElementById('imap-pass').value.trim();
+  const maxEmails = parseInt(document.getElementById('imap-limit').value, 10) || 150;
 
-  setLoading(true, 'Connessione IMAP e analisi inbox...', `Scansione header per ${username} su ${host}`);
+  setLoading(true, 'Connessione IMAP e analisi inbox...', `Scansione ultimi ${maxEmails} messaggi per ${username} su ${host}`);
   resultsSection.style.display = 'none';
 
   try {
     const res = await fetch('/api/scan/imap', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ host, port, username, password, max_emails: 150 }),
+      body: JSON.stringify({ host, port, username, password, max_emails: maxEmails }),
     });
 
     if (!res.ok) {
@@ -124,7 +217,7 @@ formImap.addEventListener('submit', async (e) => {
     renderResults(data);
     showToast(`Audit inbox completato: identificati ${data.total_services} servizi.`);
   } catch (err) {
-    alert(`Errore: ${err.message}`);
+    alert(`Errore di connessione IMAP:\n\n${err.message}\n\nSuggerimento: Se usi Gmail, assicurati di usare una "Password per le app" da myaccount.google.com/apppasswords e non la tua password normale.`);
   } finally {
     setLoading(false);
   }
@@ -156,7 +249,7 @@ mboxFileInput.addEventListener('change', (e) => {
 });
 
 async function handleFileUpload(file) {
-  setLoading(true, 'Parsing archivio email offline...', `Analisi del file ${file.name}`);
+  setLoading(true, 'Parsing archivio email offline...', `Analisi del file locale: ${file.name}`);
   resultsSection.style.display = 'none';
 
   const formData = new FormData();
@@ -177,7 +270,7 @@ async function handleFileUpload(file) {
     renderResults(data);
     showToast(`Analisi archivio completata: trovati ${data.total_services} servizi.`);
   } catch (err) {
-    alert(`Errore: ${err.message}`);
+    alert(`Errore archivio: ${err.message}`);
   } finally {
     setLoading(false);
   }
@@ -185,9 +278,9 @@ async function handleFileUpload(file) {
 
 // Quick Demo Data
 btnLoadDemo.addEventListener('click', async () => {
-  setLoading(true, 'Caricamento scenario demo...', 'Simulazione footprint reale');
+  setLoading(true, 'Caricamento scenario dimostrativo...', 'Popolamento dashboard');
   try {
-    const res = await fetch('/api/demo-data?email=portfolio.demo@example.com');
+    const res = await fetch('/api/demo-data?email=alex.rossi@example.com');
     const data = await res.json();
     renderResults(data);
     showToast('Scenario dimostrativo caricato con successo.');
@@ -270,9 +363,9 @@ function createServiceCard(s) {
   // Badges
   const catBadgeClass = `badge badge-${s.category}`;
   const catLabels = {
-    account: 'Account',
-    subscription: 'Abbonamento',
-    newsletter: 'Newsletter',
+    account: 'Account Registrato',
+    subscription: 'Abbonamento Attivo',
+    newsletter: 'Newsletter / Lista',
     breach: 'Breach Rilevato',
   };
 
@@ -339,7 +432,7 @@ function createServiceCard(s) {
           <span class="${diffBadgeClass}">${diffLabels[s.difficulty] || s.difficulty}</span>
         </div>
         ${s.notes ? `<div class="service-notes">${s.notes}</div>` : ''}
-        ${s.last_activity ? `<div style="font-size: 0.75rem; color: var(--text-dim);">Ultima attività rilevata: ${s.last_activity}</div>` : ''}
+        ${s.last_activity ? `<div style="font-size: 0.75rem; color: var(--text-dim);">Rilevato: ${s.last_activity} • Metodo: ${s.found_via}</div>` : ''}
       </div>
     </div>
     <div class="service-actions">
@@ -387,6 +480,16 @@ function createServiceCard(s) {
 }
 
 // GDPR Modal Handlers
+const gdprModal = document.getElementById('gdpr-modal');
+const btnCloseModal = document.getElementById('btn-close-modal');
+const gdprUserName = document.getElementById('gdpr-user-name');
+const gdprLang = document.getElementById('gdpr-lang');
+const gdprDpoField = document.getElementById('gdpr-dpo-field');
+const gdprSubjectField = document.getElementById('gdpr-subject-field');
+const gdprBodyField = document.getElementById('gdpr-body-field');
+const btnCopyGdpr = document.getElementById('btn-copy-gdpr');
+const btnOpenMailto = document.getElementById('btn-open-mailto');
+
 async function openGdprModal(service) {
   currentGdprService = service;
   gdprModal.style.display = 'flex';
