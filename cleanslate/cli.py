@@ -25,11 +25,14 @@ async def cmd_scan(email: str):
     print(f"[*] Avvio scansione OSINT per: {email}")
     print("[*] Interrogazione endpoint pubblici in corso...")
     
-    results = await run_osint_scan(email)
+    results, unverified = await run_osint_scan(email)
     
     print("\n" + "=" * 70)
     print(f"  RISULTATI AUDIT PER: {email}")
     print("=" * 70)
+
+    if unverified:
+        print(f"[!] Non verificabili (errore o rate limit): {', '.join(unverified)}")
     
     if not results:
         print("[!] Nessun account pubblico o registrazione rilevata.")

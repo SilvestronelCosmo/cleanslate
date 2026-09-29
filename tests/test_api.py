@@ -41,3 +41,51 @@ def test_gdpr_template_api():
     data = response.json()
     assert "privacy@netflix.com" in data["dpo_email"]
     assert "Art. 17" in data["subject"]
+
+
+def test_no_cors_header():
+    response = client.options(
+        "/api/scan/osint",
+        headers={
+            "Origin": "https://evil.example",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_mbox_upload_filename_traversal():
+    mbox_content = (
+        b"From user@example.com Mon Sep 28 12:00:00 2026\n"
+        b"From: Spotify <no-reply@spotify.com>\n"
+        b"Subject: Welcome to Spotify\n"
+        b"Date: Mon, 28 Sep 2026 12:00:00 +0200\n\n"
+        b"Content\n"
+    )
+    files = {"file": ("../../evil.mbox", mbox_content, "application/octet-stream")}
+    response = client.post("/api/scan/mbox", files=files)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["target_email"] == "evil.mbox"
+    assert data["total_services"] == 1
+
+
+def test_osint_endpoint_reports_unverified(monkeypatch):
+    async def mock_scan(email):
+        return [], ["discord.com"]
+
+    monkeypatch.setattr("cleanslate.web.app.run_osint_scan", mock_scan)
+    response = client.post("/api/scan/osint", json={"email": "test@example.com"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["unverified"] == ["discord.com"]
+
+
+def test_unsubscribe_rejects_non_http():
+    response = client.post(
+        "/api/actions/unsubscribe",
+        json={"unsub_url": "javascript:alert(1)"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is False

@@ -1,8 +1,30 @@
 /* CleanSlate Web Application Client */
 
+function escapeHtml(v) {
+  if (v === null || v === undefined) return '';
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function safeHttpUrl(v) {
+  if (!v) return null;
+  try {
+    const parsed = new URL(v);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.href;
+    }
+  } catch (e) {}
+  return null;
+}
+
 let currentScanData = {
   targetEmail: '',
   services: [],
+  isDemo: false,
 };
 
 let activeFilter = 'all';
@@ -163,7 +185,13 @@ formOsint.addEventListener('submit', async (e) => {
   const email = document.getElementById('osint-email').value.trim();
   if (!email) return;
 
-  setLoading(true, 'Scansione OSINT reale in corso...', `Verifica registrazione per ${email} su Twitter/X, Duolingo, GitHub, Spotify e 30+ piattaforme`);
+  const consent = document.getElementById('osint-consent');
+  if (consent && !consent.checked) {
+    alert('Devi confermare che si tratta del tuo indirizzo email prima di avviare la scansione.');
+    return;
+  }
+
+  setLoading(true, 'Scansione OSINT reale in corso...', 'Verifica registrazione su 16 servizi (circa 10–25 s)');
   resultsSection.style.display = 'none';
 
   try {
@@ -283,6 +311,7 @@ btnLoadDemo.addEventListener('click', async () => {
     const res = await fetch('/api/demo-data?email=alex.rossi@example.com');
     const data = await res.json();
     renderResults(data);
+    currentScanData.isDemo = true;
     showToast('Scenario dimostrativo caricato con successo.');
   } catch (err) {
     alert('Errore caricamento demo');
@@ -296,7 +325,19 @@ function renderResults(data) {
   currentScanData = {
     targetEmail: data.target_email,
     services: data.services || [],
+    isDemo: false,
   };
+
+  const unverifiedNote = document.getElementById('unverified-note');
+  if (unverifiedNote) {
+    if (data.unverified && data.unverified.length > 0) {
+      unverifiedNote.textContent = `Non verificabili (errore o limite di richieste): ${data.unverified.join(', ')}`;
+      unverifiedNote.style.display = 'block';
+    } else {
+      unverifiedNote.textContent = '';
+      unverifiedNote.style.display = 'none';
+    }
+  }
 
   document.getElementById('val-total').textContent = data.total_services;
   document.getElementById('val-accounts').textContent = data.accounts_count;
@@ -361,7 +402,9 @@ function createServiceCard(s) {
   div.className = 'service-card';
 
   // Badges
-  const catBadgeClass = `badge badge-${s.category}`;
+  const catKey = escapeHtml(s.category);
+  const diffKey = escapeHtml(s.difficulty);
+  const catBadgeClass = `badge badge-${catKey}`;
   const catLabels = {
     account: 'Account Registrato',
     subscription: 'Abbonamento Attivo',
@@ -369,7 +412,7 @@ function createServiceCard(s) {
     breach: 'Breach Rilevato',
   };
 
-  const diffBadgeClass = `badge badge-diff-${s.difficulty}`;
+  const diffBadgeClass = `badge badge-diff-${diffKey}`;
   const diffLabels = {
     easy: 'Canc. Facile',
     medium: 'Canc. Media',
@@ -378,15 +421,23 @@ function createServiceCard(s) {
     unknown: 'Rating N/D',
   };
 
-  const initial = (s.name || s.domain).charAt(0).toUpperCase();
+  const displayName = escapeHtml(s.name);
+  const displayDomain = escapeHtml(s.domain);
+  const displayNotes = escapeHtml(s.notes);
+  const displayActivity = escapeHtml(s.last_activity);
+  const displayVia = escapeHtml(s.found_via);
+  const initial = escapeHtml((s.name || s.domain || '?').charAt(0).toUpperCase());
+
+  const safeDeleteUrl = safeHttpUrl(s.delete_url);
+  const safeUnsubUrl = safeHttpUrl(s.unsubscribe_url);
 
   // Action Buttons
   let actionButtonsHtml = '';
 
-  // 1-Click Unsubscribe (for newsletters)
-  if (s.category === 'newsletter' && (s.unsubscribe_url || s.unsubscribe_post)) {
+  // 1-Click Unsubscribe (for newsletters) - only if safe URL
+  if (s.category === 'newsletter' && safeUnsubUrl) {
     actionButtonsHtml += `
-      <button class="btn btn-outline btn-sm btn-unsub" data-url="${s.unsubscribe_url || ''}">
+      <button class="btn btn-outline btn-sm btn-unsub" data-url="${escapeHtml(safeUnsubUrl)}">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
         </svg>
@@ -395,10 +446,10 @@ function createServiceCard(s) {
     `;
   }
 
-  // Delete Account URL
-  if (s.delete_url) {
+  // Delete Account URL - only if safe URL
+  if (safeDeleteUrl) {
     actionButtonsHtml += `
-      <a href="${s.delete_url}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">
+      <a href="${escapeHtml(safeDeleteUrl)}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="3 6 5 6 21 6"/>
           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -410,7 +461,7 @@ function createServiceCard(s) {
 
   // GDPR Request Button
   actionButtonsHtml += `
-    <button class="btn btn-primary btn-sm btn-gdpr" data-name="${s.name}" data-dpo="${s.dpo_email || ''}">
+    <button class="btn btn-primary btn-sm btn-gdpr" data-name="${displayName}" data-dpo="${escapeHtml(s.dpo_email || '')}">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
         <polyline points="14 2 14 8 20 8"/>
@@ -426,13 +477,13 @@ function createServiceCard(s) {
       <div class="service-avatar">${initial}</div>
       <div class="service-meta">
         <div class="service-name-row">
-          <span class="service-title">${s.name}</span>
-          <span class="service-domain">${s.domain}</span>
-          <span class="${catBadgeClass}">${catLabels[s.category] || s.category}</span>
-          <span class="${diffBadgeClass}">${diffLabels[s.difficulty] || s.difficulty}</span>
+          <span class="service-title">${displayName}</span>
+          <span class="service-domain">${displayDomain}</span>
+          <span class="${catBadgeClass}">${escapeHtml(catLabels[s.category] || s.category)}</span>
+          <span class="${diffBadgeClass}">${escapeHtml(diffLabels[s.difficulty] || s.difficulty)}</span>
         </div>
-        ${s.notes ? `<div class="service-notes">${s.notes}</div>` : ''}
-        ${s.last_activity ? `<div style="font-size: 0.75rem; color: var(--text-dim);">Rilevato: ${s.last_activity} • Metodo: ${s.found_via}</div>` : ''}
+        ${displayNotes ? `<div class="service-notes">${displayNotes}</div>` : ''}
+        ${displayActivity ? `<div style="font-size: 0.75rem; color: var(--text-dim);">Rilevato: ${displayActivity} • Metodo: ${displayVia}</div>` : ''}
       </div>
     </div>
     <div class="service-actions">
@@ -444,9 +495,18 @@ function createServiceCard(s) {
   const unsubBtn = div.querySelector('.btn-unsub');
   if (unsubBtn) {
     unsubBtn.addEventListener('click', async () => {
+      if (currentScanData.isDemo) {
+        unsubBtn.textContent = 'Modalità demo: nessuna richiesta inviata.';
+        unsubBtn.disabled = true;
+        unsubBtn.classList.remove('btn-outline');
+        unsubBtn.classList.add('btn-primary');
+        showToast('Modalità demo: nessuna richiesta inviata.');
+        return;
+      }
+
       const unsubUrl = unsubBtn.dataset.url;
       unsubBtn.disabled = true;
-      unsubBtn.innerHTML = 'Invio richiesta...';
+      unsubBtn.textContent = 'Invio richiesta...';
       try {
         const res = await fetch('/api/actions/unsubscribe', {
           method: 'POST',
@@ -455,12 +515,12 @@ function createServiceCard(s) {
         });
         const result = await res.json();
         if (result.success) {
-          unsubBtn.innerHTML = '✓ Disiscritto!';
+          unsubBtn.textContent = '✓ Disiscritto!';
           unsubBtn.classList.remove('btn-outline');
           unsubBtn.classList.add('btn-primary');
           showToast(`Disiscrizione completata per ${s.name}`);
         } else {
-          unsubBtn.innerHTML = 'Apertura link...';
+          unsubBtn.textContent = 'Apertura link...';
           window.open(unsubUrl, '_blank');
         }
       } catch (err) {

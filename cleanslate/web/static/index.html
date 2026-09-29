@@ -2,12 +2,8 @@
 <html lang="it" class="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CleanSlate — Local Footprint Audit & Unsubscriber</title>
   <link rel="stylesheet" href="/static/style.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="app-layout">
@@ -90,22 +86,30 @@
                 Come funziona la scansione OSINT?
               </button>
             </div>
-            <form id="form-osint" class="scan-form">
-              <div class="form-group flex-1">
-                <label for="osint-email">Indirizzo Email Reale</label>
-                <div class="input-wrapper">
-                  <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/>
-                  </svg>
-                  <input type="email" id="osint-email" placeholder="esempio: tuamail@gmail.com" required>
+            <form id="form-osint" class="scan-form-wrapper">
+              <div class="scan-form">
+                <div class="form-group flex-1">
+                  <label for="osint-email">Indirizzo Email Reale</label>
+                  <div class="input-wrapper">
+                    <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/>
+                    </svg>
+                    <input type="email" id="osint-email" placeholder="esempio: tuamail@gmail.com" required>
+                  </div>
                 </div>
+                <button type="submit" class="btn btn-primary" id="btn-osint-submit">
+                  <span>Avvia Scansione OSINT</span>
+                </button>
               </div>
-              <button type="submit" class="btn btn-primary" id="btn-osint-submit">
-                <span>Avvia Scansione OSINT</span>
-              </button>
+              <div class="form-group consent-group">
+                <label class="checkbox-label" for="osint-consent">
+                  <input type="checkbox" id="osint-consent" required>
+                  <span>Confermo che è il mio indirizzo e accetto che venga inviato ai servizi elencati</span>
+                </label>
+              </div>
             </form>
             <p class="tab-hint">
-              ⚡ Interroga in parallelo le registrazioni pubbliche su Twitter/X, Spotify, Duolingo, GitHub, Gravatar, Discord e altre piattaforme.
+              ⚡ Verifica registrazione su 16 servizi: Gravatar, Duolingo, GitHub, Spotify, Twitter/X, Pinterest, Discord, Deliveroo, Patreon, SoundCloud, Last.fm, Snapchat, Strava, Docker Hub, Tumblr, Proton Mail.
             </p>
           </div>
 
@@ -273,6 +277,8 @@
           </div>
         </div>
 
+        <p id="unverified-note" class="unverified-note" style="display: none;"></p>
+
         <!-- Discovered Services List -->
         <div class="services-list" id="services-container">
           <!-- Populated dynamically by app.js -->
@@ -344,12 +350,12 @@
           </button>
         </div>
         <div class="modal-body">
-          <p>La scansione OSINT (Open Source Intelligence) è una tecnica non invasiva:</p>
+          <p>La scansione OSINT (Open Source Intelligence) è una tecnica di verifica esterna:</p>
           <ul class="guide-ul">
-            <li><strong>Nessun accesso alla posta:</strong> non ti verrà mai chiesta alcuna password o autorizzazione.</li>
-            <li><strong>Interrogazione endpoint pubblici:</strong> interroga le API pubbliche di registrazione e validazione usate dai siti web (Twitter, Spotify, Duolingo, GitHub, Gravatar, ecc.).</li>
-            <li><strong>Verifica presenza:</strong> quando una piattaforma risponde che l'email è già registrata, CleanSlate la identifica e recupera i link di cancellazione e contatti DPO.</li>
-            <li><strong>Velocità:</strong> tutti i controlli vengono eseguiti in parallelo asincrono in circa 3-5 secondi.</li>
+            <li><strong>Nessun accesso alla posta:</strong> non ti verrà mai chiesta alcuna password o autorizzazione per accedere alla tua casella.</li>
+            <li><strong>Chiamate verso i servizi:</strong> l'indirizzo email viene inviato a ciascuno dei 16 servizi per verificare se risulta registrato (a Gravatar viene inviato l'hash MD5 dell'indirizzo). Da usare esclusivamente per il proprio indirizzo personale.</li>
+            <li><strong>Verifica presenza:</strong> quando una piattaforma risponde che l'email è registrata, CleanSlate la elenca con i link diretti di cancellazione e i contatti DPO.</li>
+            <li><strong>Tempi di attesa:</strong> i controlli avvengono in parallelo con un timeout massimo di 25 secondi.</li>
           </ul>
         </div>
         <div class="modal-footer">

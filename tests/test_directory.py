@@ -26,3 +26,11 @@ def test_lookup_service():
     adobe = lookup_service("Adobe")
     assert adobe is not None
     assert adobe["difficulty"] == DeletionDifficulty.HARD
+
+
+def test_lookup_no_substring_false_positive():
+    assert lookup_service("ix.com") is None
+    assert lookup_service("a") is None
+    netflix = lookup_service("mailer.netflix.com")
+    assert netflix is not None
+    assert netflix["name"] == "Netflix"

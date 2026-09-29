@@ -4,19 +4,32 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
-[![Tests](https://img.shields.io/badge/tests-13%2F13%20passed-brightgreen.svg)]()
-[![Privacy](https://img.shields.io/badge/privacy-100%25%20local-success.svg)]()
 
-CleanSlate è uno strumento progettato per trovare tutti gli account web registrati, gli abbonamenti ricorrenti e le mailing list associate a una casella di posta, offrendo strumenti immediati per disiscriversi e richiedere la cancellazione definitiva dei dati personali.
+CleanSlate è uno strumento progettato per trovare account web registrati, abbonamenti ricorrenti e mailing list associate a una casella di posta, offrendo strumenti immediati per disiscriversi e richiedere la cancellazione definitiva dei dati personali.
 
-A differenza di servizi commerciali (come Unroll.me o Cleanfox) che archiviano o monetizzano i dati delle caselle postali, **CleanSlate viene eseguito al 100% in locale sulla tua macchina**. Nessun token o dato personale viene mai inviato al cloud.
+A differenza di servizi commerciali (come Unroll.me o Cleanfox) che archiviano o monetizzano i dati delle caselle postali, CleanSlate viene eseguito in locale sulla tua macchina senza inviare token o credenziali di posta al cloud.
+
+---
+
+## 🔒 Cosa esce dalla tua macchina
+
+La trasparenza sui dati di rete inviati è totale:
+
+| Modalità | Cosa esce |
+|---|---|
+| **OSINT** | L'indirizzo email viene inviato a 16 servizi (a Gravatar il suo hash MD5) |
+| **IMAP** | Connessione diretta esclusivamente verso il tuo provider di posta |
+| **MBOX** | Nulla (elaborazione al 100% offline in locale) |
+| **Unsubscribe** | Una richiesta HTTP POST/GET all'indirizzo di disiscrizione fornito dal mittente |
+| **GDPR** | Nulla (genera il testo e predispone l'URI `mailto:` per il tuo client di posta locale) |
+| **Demo** | Nulla (nessuna richiesta di rete) |
 
 ---
 
 ## 🎯 Funzionalità Chiave
 
 1. **OSINT Footprint Recon (Zero Password)**
-   - Interroga in parallelo gli endpoint pubblici dei servizi web per rilevare account già registrati con quell'email, senza bisogno di accedere alla casella di posta.
+   - Interroga in parallelo gli endpoint di 16 piattaforme (Twitter/X, Spotify, Duolingo, GitHub, Gravatar, Discord, Deliveroo, Patreon, SoundCloud, Last.fm, Snapchat, Strava, Docker Hub, Tumblr, Proton Mail) per rilevare registrazioni pubbliche, senza richiedere password o accesso alla casella di posta.
 2. **Local Inbox Audit (IMAP o MBOX offline)**
    - Connessione crittografata IMAP o parsing offline di archivi `.mbox` / `.eml` (es. Google Takeout, Thunderbird).
    - Analizza **esclusivamente gli header dei messaggi** (Subject, From, Date, List-Unsubscribe) per rilevare:
@@ -30,22 +43,51 @@ A differenza di servizi commerciali (come Unroll.me o Cleanfox) che archiviano o
 
 ---
 
+## 🍏 App macOS
+
+CleanSlate include una finestra desktop nativa Cocoa/WebKit (`CleanSlate.app`), eseguibile da qualsiasi percorso:
+```bash
+open CleanSlate.app
+```
+oppure direttamente con Python:
+```bash
+venv/bin/python cleanslate/desktop.py
+```
+Il launcher alloca dinamicamente una porta libera su localhost, evitando conflitti di porta e garantendo il pieno funzionamento offline.
+
+---
+
+## ⚠️ Limiti noti
+
+- **Holehe non mantenuto**: i moduli per la verifica OSINT derivano dalla libreria Holehe (sotto licenza GPL-3.0), che non è attivamente manutenuta. Eventuali modifiche agli endpoint dei servizi esterni possono causare falsi negativi o rate limit, che vengono segnalati dall'applicazione tra i servizi "non verificabili".
+- **Accesso IMAP Outlook**: Microsoft ha progressivamente rimosso l'accesso IMAP tramite password semplici per gli account personali gratuiti.
+- **Tetti alle email scansionate**: il parser MBOX analizza fino a 500 messaggi per archivio; la scansione IMAP accetta un intervallo da 1 a 1000 email (default 150) per preservare reattività e memoria.
+
+---
+
 ## 🏗️ Architettura del Progetto
 
 ```
 cleanslate/
+├── CleanSlate.app/           # Bundle applicazione nativa macOS (pywebview)
 ├── cleanslate/
 │   ├── core/
 │   │   ├── models.py         # Modelli dati Pydantic (ServiceEntry, ScanSummary)
 │   │   ├── directory.py      # Database JustDelete.me e contatti DPO
-│   │   ├── osint.py          # Probing asincrono endpoint web pubblici
+│   │   ├── osint.py          # Probing asincrono (16 servizi, moduli Holehe)
 │   │   ├── imap_scanner.py   # Motore di scansione IMAP e file MBOX/EML
 │   │   └── actions.py        # Esecutore RFC 8058 e generatore Art. 17 GDPR
 │   ├── web/
-│   │   ├── app.py            # API REST FastAPI
-│   │   └── static/           # Dashboard Web responsive (Dark Mode)
+│   │   ├── app.py            # API REST FastAPI (zero CORS aperto)
+│   │   └── static/           # Dashboard Web responsive (senza dipendenze remote)
+│   ├── desktop.py            # Launcher desktop nativo su porta dinamica
 │   └── cli.py                # Interfaccia a riga di comando
-├── tests/                    # Suite di test unitari (pytest)
+├── tests/                    # Suite di test unitari offline (pytest)
+│   ├── test_actions.py
+│   ├── test_api.py
+│   ├── test_directory.py
+│   ├── test_osint.py
+│   └── test_parser.py
 ├── requirements.txt
 └── README.md
 ```
@@ -57,9 +99,6 @@ cleanslate/
 ### 1. Installazione
 
 ```bash
-git clone https://github.com/pietromey/cleanslate.git
-cd cleanslate
-
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -70,7 +109,7 @@ pip install -r requirements.txt
 ```bash
 python3 -m cleanslate.cli serve --port 8000
 ```
-Apri il browser su `http://127.0.0.1:8000`. Puoi premere **"Carica Dati Demo"** per visualizzare all'istante uno scenario completo senza inserire credenziali.
+Apri il browser su `http://127.0.0.1:8000`. Puoi premere **"Carica Dati Demo"** per visualizzare all'istante uno scenario completo senza inserire credenziali e senza effettuare chiamate di rete.
 
 ### 3. Utilizzo via CLI
 
@@ -93,32 +132,41 @@ python3 -m cleanslate.cli directory netflix
 
 ## 🧪 Esecuzione dei Test
 
-La suite di test verifica la normalizzazione dei domini, il parsing degli header MIME, la categorizzazione euristica e gli endpoint API:
+La suite di test verifica la normalizzazione dei domini, la prevenzione da path traversal, l'assenza di header CORS non necessari, il parsing degli header MIME, la categorizzazione euristica e il probing OSINT con mock offline:
 
 ```bash
-pytest -v
+venv/bin/python -m pytest -v
 ```
 
-Risultato:
+Risultato reale:
 ```
-tests/test_actions.py::test_gdpr_generation_italian PASSED
-tests/test_actions.py::test_gdpr_generation_english PASSED
-tests/test_api.py::test_root_endpoint PASSED
-tests/test_api.py::test_directory_search PASSED
-tests/test_api.py::test_demo_data PASSED
-tests/test_api.py::test_gdpr_template_api PASSED
-tests/test_directory.py::test_normalize_domain PASSED
-tests/test_directory.py::test_lookup_service PASSED
-tests/test_parser.py::test_parse_sender PASSED
-tests/test_parser.py::test_parse_unsubscribe_header PASSED
-tests/test_parser.py::test_classify_welcome_email PASSED
-tests/test_parser.py::test_classify_billing_email PASSED
-tests/test_parser.py::test_classify_newsletter_email PASSED
-13 passed in 0.56s
+tests/test_actions.py::test_gdpr_generation_italian PASSED               [  4%]
+tests/test_actions.py::test_gdpr_generation_english PASSED               [  9%]
+tests/test_api.py::test_root_endpoint PASSED                             [ 14%]
+tests/test_api.py::test_directory_search PASSED                          [ 19%]
+tests/test_api.py::test_demo_data PASSED                                 [ 23%]
+tests/test_api.py::test_gdpr_template_api PASSED                         [ 28%]
+tests/test_api.py::test_no_cors_header PASSED                            [ 33%]
+tests/test_api.py::test_mbox_upload_filename_traversal PASSED            [ 38%]
+tests/test_api.py::test_osint_endpoint_reports_unverified PASSED         [ 42%]
+tests/test_api.py::test_unsubscribe_rejects_non_http PASSED              [ 47%]
+tests/test_directory.py::test_normalize_domain PASSED                    [ 52%]
+tests/test_directory.py::test_lookup_service PASSED                      [ 57%]
+tests/test_directory.py::test_lookup_no_substring_false_positive PASSED  [ 61%]
+tests/test_osint.py::test_holehe_modules_importable PASSED               [ 66%]
+tests/test_osint.py::test_osint_service_names_count PASSED               [ 71%]
+tests/test_osint.py::test_run_osint_scan_maps_and_dedupes PASSED         [ 76%]
+tests/test_parser.py::test_parse_sender PASSED                           [ 80%]
+tests/test_parser.py::test_parse_unsubscribe_header PASSED               [ 85%]
+tests/test_parser.py::test_classify_welcome_email PASSED                 [ 90%]
+tests/test_parser.py::test_classify_billing_email PASSED                 [ 95%]
+tests/test_parser.py::test_classify_newsletter_email PASSED              [100%]
+======================== 21 passed in 0.37s =========================
 ```
 
 ---
 
-## ⚖️ Note sulla Privacy
+## 📜 Crediti e Licenze terze
 
-CleanSlate non richiede la password principale del tuo account Google o Microsoft: supporta le normali **Password per le app** e l'importazione manuale di file `.mbox` esportati con Google Takeout. Tutti i controlli risiedono nella RAM del processo locale e nessun dato viene inviato a server terzi.
+- **Holehe (GPL-3.0)**: suite per la verifica della registrazione su servizi web.
+- **JustDelete.me**: directory e percorsi per la cancellazione account.

@@ -1,14 +1,12 @@
-"""FastAPI Web Application and API routes for CleanSlate."""
-
+import asyncio
 import os
 import shutil
 import tempfile
 from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from cleanslate.core.models import (
     ScanSummary,
@@ -32,14 +30,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -54,7 +44,7 @@ class IMAPScanRequest(BaseModel):
     port: int = 993
     username: str
     password: str
-    max_emails: int = 150
+    max_emails: int = Field(150, ge=1, le=1000)
 
 
 class UnsubscribeRequest(BaseModel):
@@ -77,7 +67,7 @@ async def scan_osint_endpoint(req: OSINTScanRequest):
     if "@" not in email or "." not in email:
         raise HTTPException(status_code=400, detail="Indirizzo email non valido.")
 
-    found_services = await run_osint_scan(email)
+    found_services, unverified = await run_osint_scan(email)
 
     summary = ScanSummary(
         target_email=email,
@@ -86,6 +76,7 @@ async def scan_osint_endpoint(req: OSINTScanRequest):
         subscriptions_count=sum(1 for s in found_services if s.category == ServiceCategory.SUBSCRIPTION),
         newsletters_count=sum(1 for s in found_services if s.category == ServiceCategory.NEWSLETTER),
         breaches_count=sum(1 for s in found_services if s.category == ServiceCategory.BREACH),
+        unverified=unverified,
         services=found_services,
     )
     return summary
@@ -95,7 +86,8 @@ async def scan_osint_endpoint(req: OSINTScanRequest):
 async def scan_imap_endpoint(req: IMAPScanRequest):
     """Perform real-time IMAP header scan without downloading message bodies."""
     try:
-        summary = scan_imap_inbox(
+        summary = await asyncio.to_thread(
+            scan_imap_inbox,
             host=req.host,
             port=req.port,
             username=req.username,
@@ -113,8 +105,9 @@ async def scan_imap_endpoint(req: IMAPScanRequest):
 @app.post("/api/scan/mbox", response_model=ScanSummary)
 async def scan_mbox_endpoint(file: UploadFile = File(...)):
     """Upload and audit local .mbox or .eml export file completely offline."""
+    display_name = os.path.basename(file.filename or "offline-export")
     temp_dir = tempfile.mkdtemp()
-    temp_path = os.path.join(temp_dir, file.filename or "export.mbox")
+    temp_path = os.path.join(temp_dir, "upload.mbox")
     
     try:
         with open(temp_path, "wb") as buffer:
@@ -122,7 +115,7 @@ async def scan_mbox_endpoint(file: UploadFile = File(...)):
             
         services = scan_mbox_file(temp_path)
         return ScanSummary(
-            target_email=file.filename or "offline-export",
+            target_email=display_name,
             total_services=len(services),
             accounts_count=sum(1 for s in services if s.category == ServiceCategory.ACCOUNT),
             subscriptions_count=sum(1 for s in services if s.category == ServiceCategory.SUBSCRIPTION),

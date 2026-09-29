@@ -221,50 +221,55 @@ def scan_imap_inbox(
     """Connect to IMAP server, fetch headers, and classify services."""
     mail = imaplib.IMAP4_SSL(host, port)
     mail.login(username, password)
-    mail.select(folder, readonly=True)
-    
-    status, messages = mail.search(None, "ALL")
-    if status != "OK":
-        mail.close()
-        mail.logout()
-        return ScanSummary(target_email=username)
+    try:
+        mail.select(folder, readonly=True)
         
-    msg_ids = messages[0].split()
-    # Take latest messages first
-    msg_ids = msg_ids[-max_emails:] if len(msg_ids) > max_emails else msg_ids
-    msg_ids.reverse()
-    
-    results_map: Dict[str, ServiceEntry] = {}
-    
-    # Fetch headers only: efficient and bandwidth-friendly
-    header_fields = "(BODY.PEEK[HEADER.FIELDS (FROM TO SUBJECT DATE LIST-UNSUBSCRIBE LIST-UNSUBSCRIBE-POST)])"
-    
-    for mid in msg_ids:
-        try:
-            res, data = mail.fetch(mid, header_fields)
-            if res != "OK" or not data:
-                continue
-            raw_header = data[0][1]
-            msg = email.message_from_bytes(raw_header)
-            entry = analyze_message_headers(msg)
-            if entry:
-                key_id = f"{entry.domain}:{entry.category.value}"
-                if key_id not in results_map:
-                    results_map[key_id] = entry
-        except Exception:
-            continue
+        status, messages = mail.search(None, "ALL")
+        if status != "OK":
+            return ScanSummary(target_email=username)
             
-    mail.close()
-    mail.logout()
-    
-    services = list(results_map.values())
-    summary = ScanSummary(
-        target_email=username,
-        total_services=len(services),
-        accounts_count=sum(1 for s in services if s.category == ServiceCategory.ACCOUNT),
-        subscriptions_count=sum(1 for s in services if s.category == ServiceCategory.SUBSCRIPTION),
-        newsletters_count=sum(1 for s in services if s.category == ServiceCategory.NEWSLETTER),
-        breaches_count=sum(1 for s in services if s.category == ServiceCategory.BREACH),
-        services=services,
-    )
-    return summary
+        msg_ids = messages[0].split()
+        # Take latest messages first
+        msg_ids = msg_ids[-max_emails:] if len(msg_ids) > max_emails else msg_ids
+        msg_ids.reverse()
+        
+        results_map: Dict[str, ServiceEntry] = {}
+        
+        # Fetch headers only: efficient and bandwidth-friendly
+        header_fields = "(BODY.PEEK[HEADER.FIELDS (FROM TO SUBJECT DATE LIST-UNSUBSCRIBE LIST-UNSUBSCRIBE-POST)])"
+        
+        for mid in msg_ids:
+            try:
+                res, data = mail.fetch(mid, header_fields)
+                if res != "OK" or not data:
+                    continue
+                raw_header = data[0][1]
+                msg = email.message_from_bytes(raw_header)
+                entry = analyze_message_headers(msg)
+                if entry:
+                    key_id = f"{entry.domain}:{entry.category.value}"
+                    if key_id not in results_map:
+                        results_map[key_id] = entry
+            except Exception:
+                continue
+                
+        services = list(results_map.values())
+        summary = ScanSummary(
+            target_email=username,
+            total_services=len(services),
+            accounts_count=sum(1 for s in services if s.category == ServiceCategory.ACCOUNT),
+            subscriptions_count=sum(1 for s in services if s.category == ServiceCategory.SUBSCRIPTION),
+            newsletters_count=sum(1 for s in services if s.category == ServiceCategory.NEWSLETTER),
+            breaches_count=sum(1 for s in services if s.category == ServiceCategory.BREACH),
+            services=services,
+        )
+        return summary
+    finally:
+        try:
+            mail.close()
+        except Exception:
+            pass
+        try:
+            mail.logout()
+        except Exception:
+            pass

@@ -1,5 +1,11 @@
 #!/bin/bash
-PROJECT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)"
+PROJECT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+
+if [ ! -x "$PROJECT_DIR/venv/bin/python3" ]; then
+    echo "Errore: interprete Python non trovato in $PROJECT_DIR/venv/bin/python3" >&2
+    exit 1
+fi
+
 cd "$PROJECT_DIR"
 export PYTHONPATH="$PROJECT_DIR:$PYTHONPATH"
 exec "$PROJECT_DIR/venv/bin/python3" "$PROJECT_DIR/cleanslate/desktop.py"

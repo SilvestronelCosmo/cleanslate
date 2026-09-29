@@ -1,13 +1,13 @@
 """Asynchronous OSINT engine for discovering registered accounts from an email."""
 
-import hashlib
-import asyncio
-from typing import List, Optional, Dict, Any
-import httpx
-import trio
-import holehe.core
 
-from cleanslate.core.models import ServiceEntry, ServiceCategory, DeletionDifficulty
+import asyncio
+import hashlib
+import importlib
+from typing import Any, Dict, List, Optional, Tuple
+import httpx
+
+from cleanslate.core.models import DeletionDifficulty, ServiceCategory, ServiceEntry
 from cleanslate.core.directory import lookup_service, normalize_domain
 
 DEFAULT_HEADERS = {
@@ -15,25 +15,42 @@ DEFAULT_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
 }
 
-# High-confidence platforms from Holehe to audit in parallel
-TARGET_HOLEHE_MODULES = [
-    "twitter",
-    "github",
-    "spotify",
-    "pinterest",
-    "discord",
-    "deliveroo",
-    "patreon",
-    "soundcloud",
-    "lastfm",
-    "snapchat",
-    "strava",
-    "docker",
-    "vimeo",
-    "tumblr",
-    "protonmail",
-    "chess",
-    "duolingo",
+# Exactly 14 active Holehe modules
+HOLEHE_MODULES = [
+    "social_media.twitter",
+    "social_media.pinterest",
+    "social_media.discord",
+    "social_media.patreon",
+    "social_media.snapchat",
+    "social_media.strava",
+    "social_media.tumblr",
+    "music.spotify",
+    "music.soundcloud",
+    "music.lastfm",
+    "programing.github",
+    "shopping.deliveroo",
+    "software.docker",
+    "mails.protonmail",
+]
+
+# Exactly 16 services verified across native probes + Holehe
+OSINT_SERVICE_NAMES = [
+    "Gravatar",
+    "Duolingo",
+    "GitHub",
+    "Spotify",
+    "Twitter/X",
+    "Pinterest",
+    "Discord",
+    "Deliveroo",
+    "Patreon",
+    "SoundCloud",
+    "Last.fm",
+    "Snapchat",
+    "Strava",
+    "Docker Hub",
+    "Tumblr",
+    "Proton Mail",
 ]
 
 
@@ -67,9 +84,9 @@ async def check_gravatar(client: httpx.AsyncClient, email: str) -> Optional[Serv
 
 async def check_duolingo(client: httpx.AsyncClient, email: str) -> Optional[ServiceEntry]:
     """Check if email is registered on Duolingo."""
-    url = f"https://www.duolingo.com/2017-06-30/users?email={email.strip().lower()}"
+    url = "https://www.duolingo.com/2017-06-30/users"
     try:
-        resp = await client.get(url, headers=DEFAULT_HEADERS, timeout=4.0)
+        resp = await client.get(url, params={"email": email.strip().lower()}, headers=DEFAULT_HEADERS, timeout=4.0)
         if resp.status_code == 200:
             data = resp.json()
             users = data.get("users", [])
@@ -97,10 +114,10 @@ async def check_duolingo(client: httpx.AsyncClient, email: str) -> Optional[Serv
 
 async def check_github(client: httpx.AsyncClient, email: str) -> Optional[ServiceEntry]:
     """Check if email is publicly linked to a GitHub account."""
-    url = f"https://api.github.com/search/users?q={email.strip().lower()}+in:email"
+    url = "https://api.github.com/search/users"
     headers = {**DEFAULT_HEADERS, "Accept": "application/vnd.github.v3+json"}
     try:
-        resp = await client.get(url, headers=headers, timeout=4.0)
+        resp = await client.get(url, params={"q": f"{email.strip().lower()} in:email"}, headers=headers, timeout=4.0)
         if resp.status_code == 200:
             data = resp.json()
             if data.get("total_count", 0) > 0:
@@ -127,12 +144,11 @@ async def check_github(client: httpx.AsyncClient, email: str) -> Optional[Servic
 
 async def check_spotify(client: httpx.AsyncClient, email: str) -> Optional[ServiceEntry]:
     """Check Spotify registration via public signup validator endpoint."""
-    url = f"https://spclient.wg.spotify.com/signup/public/v1/account?validate=1&email={email.strip().lower()}"
+    url = "https://spclient.wg.spotify.com/signup/public/v1/account"
     try:
-        resp = await client.get(url, headers=DEFAULT_HEADERS, timeout=4.0)
+        resp = await client.get(url, params={"validate": "1", "email": email.strip().lower()}, headers=DEFAULT_HEADERS, timeout=4.0)
         if resp.status_code == 200:
             data = resp.json()
-            # status 20 indicates email is already taken / registered
             if data.get("status") == 20 or "email_exists" in str(data):
                 dir_info = lookup_service("spotify.com") or {}
                 return ServiceEntry(
@@ -150,58 +166,90 @@ async def check_spotify(client: httpx.AsyncClient, email: str) -> Optional[Servi
     return None
 
 
-def _run_holehe_sync(email: str) -> List[Dict[str, Any]]:
-    """Trio worker running Holehe modules."""
-    async def worker():
-        out = []
-        modules = holehe.core.import_submodules("holehe.modules")
-        async with httpx.AsyncClient(timeout=4.0) as client:
-            for mod_name, mod in modules.items():
-                short = mod_name.split(".")[-1]
-                if short in TARGET_HOLEHE_MODULES:
-                    func = getattr(mod, short, None)
-                    if func:
-                        try:
-                            await func(email, client, out)
-                        except Exception:
-                            pass
-        return out
+async def _run_holehe(email: str, client: httpx.AsyncClient) -> List[Dict[str, Any]]:
+    """Run selected Holehe modules asynchronously and gather raw results."""
+    out: List[Dict[str, Any]] = []
+    tasks = []
 
-    try:
-        return trio.run(worker)
-    except Exception:
-        return []
+    for mod_path in HOLEHE_MODULES:
+        short = mod_path.split(".")[-1]
+        try:
+            full_name = mod_path if mod_path.startswith("holehe.modules.") else f"holehe.modules.{mod_path}"
+            mod = importlib.import_module(full_name)
+            func = getattr(mod, short, None)
+            if func:
+                async def _worker(fn=func, s=short):
+                    try:
+                        await fn(email, client, out)
+                    except Exception:
+                        out.append({"name": s, "domain": f"{s}.com", "rateLimit": True, "exists": False})
+                tasks.append(_worker())
+            else:
+                out.append({"name": short, "domain": f"{short}.com", "rateLimit": True, "exists": False})
+        except Exception:
+            out.append({"name": short, "domain": f"{short}.com", "rateLimit": True, "exists": False})
+
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    return out
 
 
-async def run_osint_scan(email: str) -> List[ServiceEntry]:
+async def run_osint_scan(email: str) -> Tuple[List[ServiceEntry], List[str]]:
     """Run native parallel probes + Holehe module suite against target email."""
     results: List[ServiceEntry] = []
+    unverified: List[str] = []
     seen_domains = set()
+    unverified_domains = set()
 
-    # 1. Native high-speed async probes
-    async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
-        native_probes = [
-            check_gravatar(client, email),
-            check_duolingo(client, email),
-            check_github(client, email),
-            check_spotify(client, email),
-        ]
-        probe_results = await asyncio.gather(*native_probes, return_exceptions=True)
-        for res in probe_results:
-            if isinstance(res, ServiceEntry) and res.domain not in seen_domains:
-                results.append(res)
-                seen_domains.add(res.domain)
+    async def _scan():
+        async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
+            native_tasks = [
+                check_gravatar(client, email),
+                check_duolingo(client, email),
+                check_github(client, email),
+                check_spotify(client, email),
+            ]
+            probes_res, holehe_raw = await asyncio.gather(
+                asyncio.gather(*native_tasks, return_exceptions=True),
+                _run_holehe(email, client),
+                return_exceptions=True,
+            )
+            return (
+                probes_res if isinstance(probes_res, (list, tuple)) else [],
+                holehe_raw if isinstance(holehe_raw, (list, tuple)) else [],
+            )
 
-    # 2. Run Holehe module suite in thread
-    holehe_raw = await asyncio.to_thread(_run_holehe_sync, email)
+    try:
+        probe_results, holehe_raw = await asyncio.wait_for(_scan(), timeout=25.0)
+    except asyncio.TimeoutError:
+        probe_results, holehe_raw = [], []
+
+    for res in probe_results:
+        if isinstance(res, ServiceEntry) and res.domain not in seen_domains:
+            results.append(res)
+            seen_domains.add(res.domain)
+
     for item in holehe_raw:
+        if not isinstance(item, dict):
+            continue
+
+        raw_domain = item.get("domain") or (f"{item['name']}.com" if item.get("name") else None)
+        domain = normalize_domain(raw_domain) if raw_domain else ""
+        if not domain:
+            continue
+
+        if item.get("rateLimit") is True:
+            if domain not in unverified_domains:
+                unverified.append(domain)
+                unverified_domains.add(domain)
+
         if item.get("exists") is True:
-            domain = normalize_domain(item.get("domain") or item.get("name") + ".com")
             if domain in seen_domains:
                 continue
 
-            dir_info = lookup_service(domain) or lookup_service(item.get("name")) or {}
-            name = dir_info.get("name") or item.get("name").capitalize()
+            dir_info = lookup_service(domain) or (lookup_service(item.get("name")) if item.get("name") else {}) or {}
+            name = dir_info.get("name") or (item.get("name").capitalize() if item.get("name") else domain)
             difficulty = dir_info.get("difficulty", DeletionDifficulty.UNKNOWN)
             delete_url = dir_info.get("delete_url")
             dpo_email = dir_info.get("dpo_email")
@@ -224,4 +272,7 @@ async def run_osint_scan(email: str) -> List[ServiceEntry]:
             results.append(entry)
             seen_domains.add(domain)
 
-    return results
+    # Filter verified domains out of unverified
+    unverified = [d for d in unverified if d not in seen_domains]
+
+    return results, unverified

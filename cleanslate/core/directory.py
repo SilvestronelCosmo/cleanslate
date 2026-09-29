@@ -307,7 +307,7 @@ def lookup_service(identifier: str) -> Optional[Dict[str, Any]]:
     for domain, info in SERVICES_DATABASE.items():
         if info["name"].lower().replace(" ", "") == clean_id:
             return info
-        if norm in domain or domain in norm:
+        if norm == domain or norm.endswith("." + domain):
             return info
             
     return None

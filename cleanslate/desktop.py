@@ -15,7 +15,12 @@ import webview
 
 from cleanslate.web.app import app
 
-APP_PORT = 8765
+
+def get_free_port() -> int:
+    """Find and return an available ephemeral port on localhost."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
 
 
 def is_port_in_use(port: int) -> bool:
@@ -23,11 +28,11 @@ def is_port_in_use(port: int) -> bool:
         return s.connect_ex(("127.0.0.1", port)) == 0
 
 
-def run_uvicorn():
+def run_uvicorn(port: int):
     config = uvicorn.Config(
         app,
         host="127.0.0.1",
-        port=APP_PORT,
+        port=port,
         log_level="warning",
         access_log=False,
     )
@@ -36,18 +41,18 @@ def run_uvicorn():
 
 
 def main():
-    # 1. Start backend server if not already running
-    if not is_port_in_use(APP_PORT):
-        server_thread = threading.Thread(target=run_uvicorn, daemon=True)
-        server_thread.start()
-        
-        # Wait up to 3 seconds for server to be responsive
-        for _ in range(30):
-            if is_port_in_use(APP_PORT):
-                break
-            time.sleep(0.1)
+    # 1. Allocate a dynamic free port and start backend server
+    port = get_free_port()
+    server_thread = threading.Thread(target=run_uvicorn, args=(port,), daemon=True)
+    server_thread.start()
 
-    url = f"http://127.0.0.1:{APP_PORT}"
+    # Wait up to 3 seconds for server to be responsive
+    for _ in range(30):
+        if is_port_in_use(port):
+            break
+        time.sleep(0.1)
+
+    url = f"http://127.0.0.1:{port}"
 
     # 2. Launch native macOS Cocoa window with WebKit
     try:
