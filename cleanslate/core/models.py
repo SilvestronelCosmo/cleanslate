@@ -44,6 +44,7 @@ class ScanSummary(BaseModel):
     newsletters_count: int = 0
     breaches_count: int = 0
     unverified: List[str] = Field(default_factory=list)
+    unverified_details: List[Dict[str, str]] = Field(default_factory=list)
     services: List[ServiceEntry] = Field(default_factory=list)
 
 

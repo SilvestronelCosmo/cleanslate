@@ -129,6 +129,22 @@
               </button>
             </div>
 
+            <div class="profile-bar" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;flex-wrap:wrap;">
+              <label for="imap-profile-select" style="font-size:0.85rem;color:var(--text-dim);">Profilo salvato:</label>
+              <select id="imap-profile-select" style="flex:1;min-width:180px;max-width:300px;">
+                <option value="">Inserisci un altro account</option>
+              </select>
+              <button type="button" id="btn-save-profile" class="btn btn-outline btn-sm" title="Salva nel Portachiavi">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Salva profilo
+              </button>
+              <button type="button" id="btn-delete-profile" class="btn btn-ghost btn-sm" title="Elimina dal Portachiavi" disabled>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Elimina
+              </button>
+              <p id="profile-status" class="tab-hint" style="width:100%;margin:0.25rem 0 0;" hidden></p>
+            </div>
+
             <form id="form-imap" class="scan-grid-form">
               <div class="form-group">
                 <label for="imap-host">Server IMAP</label>
@@ -147,14 +163,14 @@
                   <label for="imap-pass">Password per le App (16 caratteri)</label>
                   <a href="https://myaccount.google.com/apppasswords" target="_blank" class="field-help-link" id="link-provider-apppass">Crea Password Google &rarr;</a>
                 </div>
-                <input type="password" id="imap-pass" placeholder="es. abcd efgh ijkl mnop" required autocomplete="off">
+                <input type="password" id="imap-pass" placeholder="es. abcd efgh ijkl mnop" autocomplete="off" required>
               </div>
               <div class="form-group">
                 <label for="imap-limit">Profondità Scansione</label>
                 <select id="imap-limit">
-                  <option value="150" selected>Veloce (Ultime 150 email - ~5 sec)</option>
-                  <option value="350">Standard (Ultime 350 email - ~10 sec)</option>
-                  <option value="750">Approfondita (Ultime 750 email - ~20 sec)</option>
+                  <option value="150" selected>Ultime 150 email</option>
+                  <option value="350">Ultime 350 email</option>
+                  <option value="750">Ultime 750 email</option>
                 </select>
               </div>
               <div class="form-actions-full">
@@ -163,6 +179,7 @@
                 </button>
               </div>
             </form>
+            <p id="imap-duration" class="tab-hint" role="status" aria-live="polite" hidden></p>
             <p class="tab-hint">
               🔒 <strong>Massima Privacy:</strong> I messaggi non vengono scaricati né salvati. CleanSlate legge solo gli header (From, Subject, List-Unsubscribe) in memoria locale per rilevare welcome email e ricevute.
             </p>

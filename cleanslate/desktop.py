@@ -16,19 +16,12 @@ import webview
 from cleanslate.web.app import app
 
 
-def get_free_port() -> int:
-    """Find and return an available ephemeral port on localhost."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
-
-
 def is_port_in_use(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(("127.0.0.1", port)) == 0
 
 
-def run_uvicorn(port: int):
+def run_uvicorn(port: int, listener):
     config = uvicorn.Config(
         app,
         host="127.0.0.1",
@@ -37,13 +30,71 @@ def run_uvicorn(port: int):
         access_log=False,
     )
     server = uvicorn.Server(config)
-    server.run()
+    server.run(sockets=[listener])
+
+
+DEFAULT_PORT = 47863
+FALLBACK_PORTS = 10
+
+
+def alert(message: str) -> None:
+    """Avviato dall'app, un errore in console non si vede: su macOS compare un avviso."""
+    print(message, file=sys.stderr)
+    if sys.platform == "darwin":
+        try:
+            import subprocess
+            subprocess.run(["osascript", "-e", f'display alert "CleanSlate non si è avviato" message {json_quote(message)}'], timeout=30, check=False)
+        except Exception:
+            pass
+
+
+def json_quote(text: str) -> str:
+    import json
+    return json.dumps(text)
+
+
+def reserve_port():
+    """(porta, socket) prenotato. Senza CLEANSLATE_PORT: la porta di serie o, se occupata, una delle successive (l'origine resta la stessa
+    finché la porta di serie è libera, così il browser integrato ricorda l'ultimo profilo)."""
+    explicit = os.environ.get("CLEANSLATE_PORT")
+    try:
+        first = int(explicit or DEFAULT_PORT)
+        if not 1 <= first <= 65535:
+            raise ValueError
+    except ValueError:
+        raise SystemExit("CLEANSLATE_PORT deve essere una porta tra 1 e 65535.") from None
+    for port in [first] if explicit else range(first, min(65536, first + FALLBACK_PORTS)):
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            listener.bind(("127.0.0.1", port))
+            return port, listener
+        except OSError:
+            listener.close()
+    raise SystemExit("Impossibile avviare CleanSlate: porta locale occupata. Chiudi l'altra istanza o configura CLEANSLATE_PORT.")
+
+
+def configure_macos_name():
+    if sys.platform != "darwin":
+        return
+    from Foundation import NSBundle, NSProcessInfo
+
+    NSProcessInfo.processInfo().setProcessName_("CleanSlate")
+    bundle = NSBundle.mainBundle()
+    for info in (bundle.infoDictionary(), bundle.localizedInfoDictionary()):
+        if info is not None:
+            info["CFBundleName"] = "CleanSlate"
+            info["CFBundleDisplayName"] = "CleanSlate"
 
 
 def main():
-    # 1. Allocate a dynamic free port and start backend server
-    port = get_free_port()
-    server_thread = threading.Thread(target=run_uvicorn, args=(port,), daemon=True)
+    configure_macos_name()
+    try:
+        port, listener = reserve_port()
+    except SystemExit as e:
+        alert(str(e.code))
+        raise
+    server_thread = threading.Thread(target=run_uvicorn, args=(port, listener), daemon=True)
     server_thread.start()
 
     # Wait up to 3 seconds for server to be responsive
@@ -51,6 +102,9 @@ def main():
         if is_port_in_use(port):
             break
         time.sleep(0.1)
+    else:
+        listener.close()
+        raise SystemExit("Il server locale di CleanSlate non si è avviato.")
 
     url = f"http://127.0.0.1:{port}"
 
@@ -66,7 +120,8 @@ def main():
             zoomable=True,
         )
         # webview.start() blocks until the window is closed by the user
-        webview.start(debug=False)
+        webview.start(debug=False, private_mode=False,
+                      storage_path=os.path.expanduser("~/.cleanslate/webview"))
     except Exception as e:
         # Fallback to default browser if native window fails
         print(f"Opening in default browser due to GUI limitation: {e}")
@@ -78,6 +133,7 @@ def main():
         except KeyboardInterrupt:
             pass
 
+    listener.close()
     sys.exit(0)
 
 

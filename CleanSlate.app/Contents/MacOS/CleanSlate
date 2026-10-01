@@ -1,11 +1,11 @@
 #!/bin/bash
-PROJECT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+PROJECT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)" || exit 1
 
-if [ ! -x "$PROJECT_DIR/venv/bin/python3" ]; then
-    echo "Errore: interprete Python non trovato in $PROJECT_DIR/venv/bin/python3" >&2
+PYTHON_BIN="${CLEANSLATE_PYTHON:-$PROJECT_DIR/venv/bin/python3}"
+if [[ "$PYTHON_BIN" != /* ]] || [ ! -x "$PYTHON_BIN" ]; then
+    echo "CleanSlate: crea venv nella cartella del progetto e installa requirements.txt (vedi REQUISITI.md), oppure imposta CLEANSLATE_PYTHON al percorso assoluto di un interprete eseguibile." >&2
     exit 1
 fi
 
-cd "$PROJECT_DIR"
-export PYTHONPATH="$PROJECT_DIR:$PYTHONPATH"
-exec "$PROJECT_DIR/venv/bin/python3" "$PROJECT_DIR/cleanslate/desktop.py"
+cd "$PROJECT_DIR" || exit 1
+exec "$PYTHON_BIN" -m cleanslate.desktop

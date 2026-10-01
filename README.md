@@ -38,7 +38,7 @@ La trasparenza sui dati di rete inviati è totale:
      - **Newsletter e mailing list**: estrazione parametri RFC 2369 e RFC 8058.
 3. **Action Hub: Disiscrizione e Cancellazione**
    - **RFC 8058 1-Click Unsubscribe**: disiscrizione istantanea tramite richiesta HTTP POST standardizzata (`List-Unsubscribe=One-Click`).
-   - **Database JustDelete.me Integrato**: classificazione della difficoltà di cancellazione (*Facile, Media, Difficile, Impossibile*) e link diretto alla pagina di chiusura account.
+   - **Selezione locale ispirata a JustDelete.me**: classificazione della difficoltà di cancellazione (*Facile, Media, Difficile, Impossibile*) e link diretto alla pagina di chiusura account.
    - **Generatore GDPR Articolo 17**: redazione automatica di richieste formali di diritto all'oblio in italiano e inglese, indirizzate al DPO aziendale con apertura immediata nel client di posta.
 
 ---
@@ -73,7 +73,7 @@ cleanslate/
 ├── cleanslate/
 │   ├── core/
 │   │   ├── models.py         # Modelli dati Pydantic (ServiceEntry, ScanSummary)
-│   │   ├── directory.py      # Database JustDelete.me e contatti DPO
+│   │   ├── directory.py      # Selezione locale di percorsi di cancellazione e contatti DPO
 │   │   ├── osint.py          # Probing asincrono (16 servizi, moduli Holehe)
 │   │   ├── imap_scanner.py   # Motore di scansione IMAP e file MBOX/EML
 │   │   └── actions.py        # Esecutore RFC 8058 e generatore Art. 17 GDPR
@@ -98,6 +98,8 @@ cleanslate/
 
 ### 1. Installazione
 
+Dalla cartella dei sorgenti, con Python 3.10 o successivo. Vedi [REQUISITI.md](REQUISITI.md) per piattaforme, configurazione, rete e limiti verificati.
+
 ```bash
 python3 -m venv venv
 source venv/bin/activate
@@ -109,6 +111,8 @@ pip install -r requirements.txt
 ```bash
 python3 -m cleanslate.cli serve --port 8000
 ```
+Su macOS, dopo l'installazione, puoi anche aprire `CleanSlate.app` dalla cartella dei sorgenti oppure eseguire `python3 -m cleanslate.desktop`. Il bundle attuale è un launcher: richiede i sorgenti e `venv` accanto a sé, non è ancora un'app autonoma da copiare in Applicazioni. Dopo aver copiato il progetto su un altro computer, ricrea `venv`.
+
 Apri il browser su `http://127.0.0.1:8000`. Puoi premere **"Carica Dati Demo"** per visualizzare all'istante uno scenario completo senza inserire credenziali e senza effettuare chiamate di rete.
 
 ### 3. Utilizzo via CLI
@@ -168,5 +172,4 @@ tests/test_parser.py::test_classify_newsletter_email PASSED              [100%]
 
 ## 📜 Crediti e Licenze terze
 
-- **Holehe (GPL-3.0)**: suite per la verifica della registrazione su servizi web.
-- **JustDelete.me**: directory e percorsi per la cancellazione account.
+CleanSlate è distribuito sotto [GNU GPL versione 3 soltanto](LICENSE) (`GPL-3.0-only`). Il codice di Holehe usato per le verifiche OSINT conserva la propria licenza GPL-3.0; JustDelete.me è un riferimento per la selezione locale di percorsi di cancellazione. Le licenze delle dipendenze dirette, le fonti e le condizioni per un futuro pacchetto scaricabile sono in [Crediti e licenze di terzi](THIRD_PARTY_NOTICES.md).

@@ -208,7 +208,8 @@ formOsint.addEventListener('submit', async (e) => {
 
     const data = await res.json();
     renderResults(data);
-    showToast(`Scansione OSINT completata: trovati ${data.total_services} account reali.`);
+    const uncertain = data.unverified?.length || 0;
+    showToast(`Scansione OSINT completata: ${data.total_services} account segnalati${uncertain ? `; ${uncertain} servizi non verificabili` : ''}.`);
   } catch (err) {
     alert(`Errore scansione: ${err.message}`);
   } finally {
@@ -223,17 +224,38 @@ formImap.addEventListener('submit', async (e) => {
   const host = imapHost.value.trim();
   const port = parseInt(imapPort.value, 10);
   const username = imapUser.value.trim();
-  const password = document.getElementById('imap-pass').value.trim();
+  const password = document.getElementById('imap-pass').value;
   const maxEmails = parseInt(document.getElementById('imap-limit').value, 10) || 150;
+  const durationEl = document.getElementById('imap-duration');
+  const submitButton = formImap.querySelector('button[type="submit"]');
 
-  setLoading(true, 'Connessione IMAP e analisi inbox...', `Scansione ultimi ${maxEmails} messaggi per ${username} su ${host}`);
+  const startedAt = performance.now();
+  const formatDuration = (milliseconds) => {
+    const seconds = Math.floor(milliseconds / 1000);
+    return seconds < 60 ? `${seconds} s` : `${Math.floor(seconds / 60)} min ${seconds % 60} s`;
+  };
+  const elapsed = () => formatDuration(performance.now() - startedAt);
+  durationEl.hidden = true;
+  submitButton.disabled = true;
+
+  setLoading(true, 'Connessione IMAP e analisi inbox...', `Ultimi ${maxEmails} messaggi · Tempo trascorso: 0 s`);
   resultsSection.style.display = 'none';
+  const timer = setInterval(() => {
+    statusSub.textContent = `Ultimi ${maxEmails} messaggi · Tempo trascorso: ${elapsed()}`;
+  }, 1000);
+  let completed = false;
+  let finishedAt = startedAt;
 
   try {
+    const profileName = profileSelect ? profileSelect.value : '';
+    const body = { host, port, username, password, max_emails: maxEmails };
+    if (profileName) {
+      body.profile_name = profileName;
+    }
     const res = await fetch('/api/scan/imap', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ host, port, username, password, max_emails: maxEmails }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -243,10 +265,17 @@ formImap.addEventListener('submit', async (e) => {
 
     const data = await res.json();
     renderResults(data);
+    finishedAt = performance.now();
+    completed = true;
     showToast(`Audit inbox completato: identificati ${data.total_services} servizi.`);
   } catch (err) {
+    finishedAt = performance.now();
     alert(`Errore di connessione IMAP:\n\n${err.message}\n\nSuggerimento: Se usi Gmail, assicurati di usare una "Password per le app" da myaccount.google.com/apppasswords e non la tua password normale.`);
   } finally {
+    clearInterval(timer);
+    durationEl.textContent = `${completed ? 'Durata effettiva della scansione' : 'Tentativo terminato dopo'}: ${formatDuration(finishedAt - startedAt)}.`;
+    durationEl.hidden = false;
+    submitButton.disabled = false;
     setLoading(false);
   }
 });
@@ -331,10 +360,22 @@ function renderResults(data) {
   const unverifiedNote = document.getElementById('unverified-note');
   if (unverifiedNote) {
     if (data.unverified && data.unverified.length > 0) {
-      unverifiedNote.textContent = `Non verificabili (errore o limite di richieste): ${data.unverified.join(', ')}`;
+      const count = data.unverified.length;
+      let html = `<strong>${count} servizi non verificabili</strong>.`;
+      if (data.unverified_details && data.unverified_details.length > 0) {
+        html += ' <button class="btn-expand-unverified" onclick="this.nextElementSibling.hidden=!this.nextElementSibling.hidden;this.textContent=this.nextElementSibling.hidden?\'Mostra dettagli\':\'Nascondi dettagli\'" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.85rem;text-decoration:underline;">Mostra dettagli</button>';
+        html += '<ul class="unverified-detail-list" hidden style="margin-top:0.5rem;padding-left:1.2rem;font-size:0.85rem;">';
+        for (const item of data.unverified_details) {
+          const cause = item.cause || item.reason || 'Causa non disponibile';
+          const hint = item.hint ? ` — Possibile causa: ${escapeHtml(item.hint)}` : '';
+          html += `<li><strong>${escapeHtml(item.domain)}</strong>: ${escapeHtml(cause)}${hint}</li>`;
+        }
+        html += '</ul>';
+      }
+      unverifiedNote.innerHTML = html;
       unverifiedNote.style.display = 'block';
     } else {
-      unverifiedNote.textContent = '';
+      unverifiedNote.innerHTML = '';
       unverifiedNote.style.display = 'none';
     }
   }
@@ -601,6 +642,146 @@ btnCopyGdpr.addEventListener('click', () => {
     showToast('Lettera GDPR copiata negli appunti!');
   });
 });
+
+// IMAP Profile Management (macOS Keychain)
+let savedProfiles = [];
+let profilesLoaded = false;
+let profileLoadVersion = 0;
+const profileSelect = document.getElementById('imap-profile-select');
+const btnSaveProfile = document.getElementById('btn-save-profile');
+const btnDeleteProfile = document.getElementById('btn-delete-profile');
+const profileStatus = document.getElementById('profile-status');
+const lastImapProfileKey = 'cleanslate.lastImapProfile';
+
+function rememberImapProfile(name) {
+  try {
+    if (name) localStorage.setItem(lastImapProfileKey, name);
+    else localStorage.removeItem(lastImapProfileKey);
+  } catch (e) {}
+}
+
+function lastImapProfile() {
+  try {
+    return localStorage.getItem(lastImapProfileKey) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function applyImapProfile(name) {
+  const profile = savedProfiles.find(p => p.name === name);
+  const passField = document.getElementById('imap-pass');
+  profileSelect.value = profile ? profile.name : '';
+  passField.value = '';
+  passField.required = !profile;
+  passField.placeholder = profile ? '(salvata nel Portachiavi)' : 'es. abcd efgh ijkl mnop';
+  btnDeleteProfile.disabled = !profile;
+  if (profile) {
+    imapHost.value = profile.host;
+    imapPort.value = profile.port;
+    imapUser.value = profile.username;
+    profileStatus.textContent = 'Profilo caricato. La password verrà letta dal Portachiavi.';
+  }
+  profileStatus.hidden = !profile;
+  rememberImapProfile(profile ? profile.name : '');
+}
+
+async function loadImapProfiles(preferredName) {
+  const version = ++profileLoadVersion;
+  try {
+    const res = await fetch('/api/imap/profiles');
+    if (!res.ok) throw new Error('Caricamento profili non riuscito.');
+    const profiles = await res.json();
+    if (version !== profileLoadVersion) return;
+    let selected = preferredName !== undefined ? preferredName : profileSelect.value;
+    if (!profilesLoaded && preferredName === undefined && !selected) {
+      const last = lastImapProfile();
+      selected = profiles.some(p => p.name === last) ? last : (profiles.length === 1 ? profiles[0].name : '');
+    }
+    const previous = profileSelect.value;
+    savedProfiles = profiles;
+    profileSelect.innerHTML = '<option value="">Inserisci un altro account</option>';
+    for (const p of savedProfiles) {
+      const opt = document.createElement('option');
+      opt.value = p.name;
+      opt.textContent = `${p.username} — ${p.host}:${p.port}`;
+      profileSelect.appendChild(opt);
+    }
+    profileSelect.value = savedProfiles.some(p => p.name === selected) ? selected : '';
+    if (!profilesLoaded || preferredName !== undefined || profileSelect.value !== previous) {
+      applyImapProfile(profileSelect.value);
+    }
+    profilesLoaded = true;
+  } catch (e) {
+    if (version !== profileLoadVersion) return;
+    profileStatus.textContent = 'Impossibile caricare i profili. Riprova aprendo la scheda IMAP.';
+    profileStatus.hidden = false;
+  }
+}
+
+profileSelect.addEventListener('change', () => applyImapProfile(profileSelect.value));
+
+function detachImapProfile() {
+  if (profileSelect.value) applyImapProfile('');
+}
+[imapHost, imapPort, imapUser].forEach(field => field.addEventListener('input', detachImapProfile));
+presetBtns.forEach(btn => btn.addEventListener('click', detachImapProfile));
+
+btnSaveProfile.addEventListener('click', async () => {
+  const host = imapHost.value.trim();
+  const port = parseInt(imapPort.value, 10);
+  const username = imapUser.value.trim();
+  const password = document.getElementById('imap-pass').value;
+  if (!host || !Number.isInteger(port) || port < 1 || port > 65535 || !username || !password) {
+    alert('Inserisci server, porta, email e password prima di salvare il profilo.');
+    return;
+  }
+  btnSaveProfile.disabled = true;
+  try {
+    const res = await fetch('/api/imap/profiles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ host, port, username, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Errore salvataggio profilo.');
+    document.getElementById('imap-pass').value = '';
+    rememberImapProfile(data.profile_name);
+    await loadImapProfiles(data.profile_name);
+    showToast(data.message || 'Profilo salvato nel Portachiavi.');
+  } catch (e) {
+    alert('Impossibile salvare il profilo nel Portachiavi.');
+  } finally {
+    btnSaveProfile.disabled = false;
+  }
+});
+
+btnDeleteProfile.addEventListener('click', async () => {
+  const name = profileSelect.value;
+  if (!name) return;
+  if (!confirm(`Eliminare il profilo "${name}" e la sua password dal Portachiavi?`)) return;
+  btnDeleteProfile.disabled = true;
+  try {
+    const res = await fetch(`/api/imap/profiles/${encodeURIComponent(name)}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Errore eliminazione profilo.');
+    applyImapProfile('');
+    await loadImapProfiles('');
+    showToast(data.message || 'Profilo eliminato.');
+  } catch (e) {
+    alert('Impossibile eliminare il profilo dal Portachiavi. Riprova.');
+  } finally {
+    btnDeleteProfile.disabled = !profileSelect.value;
+  }
+});
+
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.tab === 'tab-imap') loadImapProfiles();
+  });
+});
+
+loadImapProfiles();
 
 function debounce(func, wait) {
   let timeout;

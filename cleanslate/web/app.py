@@ -3,10 +3,12 @@ import os
 import shutil
 import tempfile
 from typing import List, Optional
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
 from cleanslate.core.models import (
     ScanSummary,
@@ -22,6 +24,13 @@ from cleanslate.core.imap_scanner import scan_imap_inbox, scan_mbox_file
 from cleanslate.core.actions import (
     execute_one_click_unsubscribe,
     generate_gdpr_deletion_request,
+)
+from cleanslate.core.keychain import (
+    save_profile,
+    load_profiles,
+    load_profile,
+    get_password,
+    delete_profile,
 )
 
 app = FastAPI(
@@ -41,10 +50,25 @@ class OSINTScanRequest(BaseModel):
 
 class IMAPScanRequest(BaseModel):
     host: str = "imap.gmail.com"
-    port: int = 993
-    username: str
-    password: str
+    port: int = Field(993, ge=1, le=65535)
+    username: str = ""
+    password: SecretStr = SecretStr("")
     max_emails: int = Field(150, ge=1, le=1000)
+    profile_name: Optional[str] = None
+
+
+class IMAPProfileSaveRequest(BaseModel):
+    host: str = Field("imap.gmail.com", min_length=1)
+    port: int = Field(993, ge=1, le=65535)
+    username: str = Field(min_length=1)
+    password: SecretStr = Field(min_length=1)
+
+
+@app.exception_handler(RequestValidationError)
+async def imap_validation_error(request: Request, exc: RequestValidationError):
+    if request.url.path in {"/api/scan/imap", "/api/imap/profiles"}:
+        return JSONResponse(status_code=422, content={"detail": "Dati IMAP non validi."})
+    return await request_validation_exception_handler(request, exc)
 
 
 class UnsubscribeRequest(BaseModel):
@@ -67,7 +91,7 @@ async def scan_osint_endpoint(req: OSINTScanRequest):
     if "@" not in email or "." not in email:
         raise HTTPException(status_code=400, detail="Indirizzo email non valido.")
 
-    found_services, unverified = await run_osint_scan(email)
+    found_services, unverified_details = await run_osint_scan(email)
 
     summary = ScanSummary(
         target_email=email,
@@ -76,7 +100,8 @@ async def scan_osint_endpoint(req: OSINTScanRequest):
         subscriptions_count=sum(1 for s in found_services if s.category == ServiceCategory.SUBSCRIPTION),
         newsletters_count=sum(1 for s in found_services if s.category == ServiceCategory.NEWSLETTER),
         breaches_count=sum(1 for s in found_services if s.category == ServiceCategory.BREACH),
-        unverified=unverified,
+        unverified=[u["domain"] for u in unverified_details],
+        unverified_details=unverified_details,
         services=found_services,
     )
     return summary
@@ -85,21 +110,88 @@ async def scan_osint_endpoint(req: OSINTScanRequest):
 @app.post("/api/scan/imap", response_model=ScanSummary)
 async def scan_imap_endpoint(req: IMAPScanRequest):
     """Perform real-time IMAP header scan without downloading message bodies."""
+    host, port, username = req.host, req.port, req.username
+    password = req.password.get_secret_value()
+    if req.profile_name:
+        try:
+            profile = load_profile(req.profile_name)
+        except Exception:
+            raise HTTPException(status_code=500, detail="Impossibile leggere il profilo IMAP.") from None
+        if profile is None:
+            raise HTTPException(status_code=404, detail="Profilo IMAP non trovato.")
+        for field in ("host", "port", "username"):
+            if field in req.model_fields_set and getattr(req, field) != profile[field]:
+                raise HTTPException(status_code=400, detail="I dati IMAP non corrispondono al profilo selezionato.")
+        host, port, username = profile["host"], profile["port"], profile["username"]
+        if not password:
+            try:
+                password = await asyncio.to_thread(get_password, req.profile_name) or ""
+            except Exception:
+                raise HTTPException(status_code=500, detail="Impossibile accedere al Portachiavi.") from None
+    if not host.strip() or not username.strip():
+        raise HTTPException(status_code=400, detail="Server e utente IMAP sono obbligatori.")
+    if not password:
+        raise HTTPException(
+            status_code=400,
+            detail="Password mancante. Inseriscila o salva un profilo nel Portachiavi.",
+        )
     try:
         summary = await asyncio.to_thread(
             scan_imap_inbox,
-            host=req.host,
-            port=req.port,
-            username=req.username,
-            password=req.password,
+            host=host,
+            port=port,
+            username=username,
+            password=password,
             max_emails=req.max_emails,
         )
         return summary
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=400,
-            detail=f"Errore connessione IMAP: {str(e)}. Verifica host, porta e password applicativa.",
+            detail="Errore connessione IMAP. Verifica host, porta e password applicativa.",
+        ) from None
+
+
+@app.get("/api/imap/profiles")
+def list_imap_profiles():
+    """Return saved IMAP profiles (without passwords)."""
+    try:
+        return load_profiles()
+    except Exception:
+        raise HTTPException(status_code=500, detail="Impossibile leggere i profili IMAP.") from None
+
+
+@app.post("/api/imap/profiles")
+def save_imap_profile(req: IMAPProfileSaveRequest):
+    """Save an IMAP profile with password stored in macOS Keychain."""
+    if not req.host.strip() or not req.username.strip():
+        raise HTTPException(status_code=400, detail="Server e utente IMAP sono obbligatori.")
+    try:
+        name = save_profile(
+            host=req.host,
+            port=req.port,
+            username=req.username,
+            password=req.password.get_secret_value(),
         )
+        return {"ok": True, "profile_name": name, "message": "Profilo salvato nel Portachiavi."}
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Impossibile salvare il profilo nel Portachiavi.",
+        ) from None
+
+
+@app.delete("/api/imap/profiles/{name}")
+def delete_imap_profile(name: str):
+    """Delete an IMAP profile and its password from macOS Keychain."""
+    try:
+        delete_profile(name)
+        return {"ok": True, "message": "Profilo eliminato."}
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Impossibile eliminare il profilo dal Portachiavi. Il profilo è stato conservato.",
+        ) from None
 
 
 @app.post("/api/scan/mbox", response_model=ScanSummary)

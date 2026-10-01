@@ -32,7 +32,8 @@ async def cmd_scan(email: str):
     print("=" * 70)
 
     if unverified:
-        print(f"[!] Non verificabili (errore o rate limit): {', '.join(unverified)}")
+        details = ", ".join(f"{item['domain']} ({item['cause']})" for item in unverified)
+        print(f"[!] Non verificabili: {details}")
     
     if not results:
         print("[!] Nessun account pubblico o registrazione rilevata.")
