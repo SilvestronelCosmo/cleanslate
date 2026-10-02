@@ -5,6 +5,8 @@ from email.header import decode_header
 import imaplib
 import mailbox
 import re
+import ssl
+import certifi
 from typing import Dict, Generator, List, Optional, Tuple
 from cleanslate.core.models import (
     ServiceEntry,
@@ -219,7 +221,8 @@ def scan_imap_inbox(
     max_emails: int = 250,
 ) -> ScanSummary:
     """Connect to IMAP server, fetch headers, and classify services."""
-    mail = imaplib.IMAP4_SSL(host, port)
+    context = ssl.create_default_context(cafile=certifi.where())
+    mail = imaplib.IMAP4_SSL(host, port, ssl_context=context)
     mail.login(username, password)
     try:
         mail.select(folder, readonly=True)

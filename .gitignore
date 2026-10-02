@@ -5,3 +5,6 @@ __pycache__/
 .DS_Store
 .officina/
 .claude-flow/
+build/
+dist/
+graphify-out/

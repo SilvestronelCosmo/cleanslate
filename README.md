@@ -45,7 +45,9 @@ La trasparenza sui dati di rete inviati è totale:
 
 ## 🍏 App macOS
 
-CleanSlate include una finestra desktop nativa Cocoa/WebKit (`CleanSlate.app`), eseguibile da qualsiasi percorso:
+Il pacchetto di prova `dist/CleanSlate-1.0.0-macos-arm64.zip` contiene un'app autonoma per **Mac Apple Silicon con macOS 26+**: include Python e librerie, si estrae e si copia in Applicazioni. È una build locale da revisionare, con firma ad-hoc e senza notarizzazione Apple; non è ancora un download pubblico. Vedi [installazione e prova demo](docs/INSTALLAZIONE_MACOS.md).
+
+La `CleanSlate.app` nella radice dei **sorgenti** resta invece il launcher di sviluppo e richiede il venv accanto. Dopo aver installato i requisiti:
 ```bash
 open CleanSlate.app
 ```
@@ -53,7 +55,7 @@ oppure direttamente con Python:
 ```bash
 venv/bin/python cleanslate/desktop.py
 ```
-Il launcher alloca dinamicamente una porta libera su localhost, evitando conflitti di porta e garantendo il pieno funzionamento offline.
+L'app usa una porta locale a partire da 47863. La demo funziona offline; OSINT e IMAP richiedono rete.
 
 ---
 
@@ -111,7 +113,7 @@ pip install -r requirements.txt
 ```bash
 python3 -m cleanslate.cli serve --port 8000
 ```
-Su macOS, dopo l'installazione, puoi anche aprire `CleanSlate.app` dalla cartella dei sorgenti oppure eseguire `python3 -m cleanslate.desktop`. Il bundle attuale è un launcher: richiede i sorgenti e `venv` accanto a sé, non è ancora un'app autonoma da copiare in Applicazioni. Dopo aver copiato il progetto su un altro computer, ricrea `venv`.
+Su macOS, dopo l'installazione, puoi anche aprire `CleanSlate.app` dalla cartella dei sorgenti oppure eseguire `python3 -m cleanslate.desktop`. Questo launcher richiede i sorgenti e `venv` accanto a sé. Dopo aver copiato i sorgenti su un altro computer, ricrea `venv`. Il pacchetto autonomo descritto sopra non richiede questi passaggi.
 
 Apri il browser su `http://127.0.0.1:8000`. Puoi premere **"Carica Dati Demo"** per visualizzare all'istante uno scenario completo senza inserire credenziali e senza effettuare chiamate di rete.
 

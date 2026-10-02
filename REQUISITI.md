@@ -2,7 +2,9 @@
 
 ## Cosa si installa oggi
 
-Si installano **i sorgenti e le dipendenze Python**, nella stessa cartella. `CleanSlate.app` è un launcher macOS che avvia questi sorgenti: non contiene Python né le librerie. Copiare solo `.app` in Applicazioni non basta. Un'app autonoma scaricabile, firmata e con dipendenze incluse è un lavoro separato, non ancora consegnato.
+Il pacchetto di prova `dist/CleanSlate-1.0.0-macos-arm64.zip` include **Python e dipendenze**: la sua `CleanSlate.app` al primo livello si può copiare in Applicazioni. Richiede Apple Silicon e macOS 26+; è verificato su macOS 26.3. Firma locale ad-hoc, nessuna notarizzazione Apple, pubblicazione ancora da fare. La [guida del pacchetto](docs/INSTALLAZIONE_MACOS.md) spiega installazione, demo, limiti e ricostruzione.
+
+Per lavorare sui **sorgenti**, invece, si installano le dipendenze Python nella stessa cartella. La `CleanSlate.app` nella radice del repository rimane un launcher: non contiene Python né le librerie e non va copiata da sola in Applicazioni. Le istruzioni qui sotto si riferiscono a questa installazione dai sorgenti.
 
 Non servono Officina, Homebrew, Node.js per usare l'app, account dello sviluppatore o chiavi API a pagamento. L'installazione iniziale richiede Internet per scaricare le librerie da PyPI. Non copiare `venv` fra computer: va ricreato con il Python della macchina di destinazione.
 
@@ -66,9 +68,10 @@ I comandi Windows sono istruzioni da verificare su quella piattaforma. Non esist
 | pyobjc-framework-Cocoa (solo macOS) | Bridge Foundation usato per il nome CleanSlate nella GUI; gli altri bridge desktop sono richiesti da pywebview |
 | holehe | Moduli OSINT e relative dipendenze (tra cui trio e BeautifulSoup) |
 | keyring | Accesso al Portachiavi macOS |
+| certifi | Certificati radice inclusi per verificare identità e certificato del server IMAP anche senza Python/Homebrew installati |
 | pytest | Test di sviluppo |
 
-Le versioni minime sono in `requirements.txt`; il file non blocca tutte le versioni a quelle provate. Non è quindi un lock per build identiche. Licenze e versioni dell'inventario sono in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); il futuro pacchetto richiederà l'inventario delle librerie effettivamente incluse.
+Le versioni minime sono in `requirements.txt`; il file non blocca tutte le versioni a quelle provate. Non è quindi un lock per build identiche. Licenze e versioni dell'inventario sono in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Il pacchetto generato contiene anche versioni risolte, sorgenti delle dipendenze, licenze e inventario dei moduli effettivamente inclusi.
 
 ## Configurazione e percorsi
 
@@ -133,4 +136,3 @@ venv/bin/python scripts/check_portability.py
 L'ultimo comando richiede rete per pip e spazio per un secondo ambiente Python temporaneo. Copia solo sorgenti, launcher, requisiti e test in un percorso con spazi, crea un venv vuoto, installa i requisiti e verifica import, suite Python, risorse statiche, demo e CLI. Elimina la copia al termine; non apre finestre, non esegue scansioni e non legge password. I test del launcher controllano anche avvio da una directory estranea, interprete configurato e interprete mancante.
 
 La prova automatica del nome macOS controlla i valori Cocoa in un processo separato. La visualizzazione effettiva della barra menu richiede ancora una prova manuale aprendo CleanSlate.app. Le prove manuali IMAP e di persistenza dei profili erano già state confermate da Pietro prima di questo lavoro.
-

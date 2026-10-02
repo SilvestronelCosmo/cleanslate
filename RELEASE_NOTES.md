@@ -29,7 +29,8 @@ Sono misure di queste prove, non stime garantite: la durata dipende dalla casell
 - Le verifiche OSINT dipendono da servizi esterni e da moduli Holehe; un servizio non verificabile non è un risultato negativo. Otto servizi restano «non determinati» (vedi [docs/osint-servizi.md](docs/osint-servizi.md)).
 - La scansione IMAP legge gli header degli ultimi messaggi selezionati e richiede un accesso IMAP valido; alcuni provider richiedono una password per le app. Niente OAuth.
 - Il salvataggio delle password funziona solo su macOS (Portachiavi); sugli altri sistemi la password si inserisce a ogni scansione.
-- `CleanSlate.app` avvia i sorgenti del progetto con il loro ambiente Python (vedi [REQUISITI.md](REQUISITI.md)): non è ancora un pacchetto autonomo da scaricare. Il pacchetto è la tappa successiva.
+- IMAP verifica sempre il certificato e il nome del server. I server con certificato autofirmato (per esempio i bridge locali) non sono supportati: la connessione viene rifiutata e non esiste un'opzione per disattivare il controllo.
+- Il pacchetto per Mac è un'app autonoma (Apple Silicon), non firmata né notarizzata: al primo avvio macOS può chiedere «Apri comunque» (vedi [docs/INSTALLAZIONE_MACOS.md](docs/INSTALLAZIONE_MACOS.md)).
 
 ## Licenza
 

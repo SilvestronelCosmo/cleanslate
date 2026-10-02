@@ -1,0 +1,6 @@
+Lo sdist proxy_tools 0.1.0 omette LICENSE: si include il testo upstream integrale non modificato.
+Fonte: https://raw.githubusercontent.com/jtushman/proxy_tools/ccd35a569b95bec271a59890780c7821756c548a/LICENSE.txt
+SHA-256: a428fb8a2e762af3eb0a6edbbb88e9b42ccfee80fd9b423958bcacf9b9abbfe4
+Recuperato il 2026-10-01 tramite HTTPS dal repository ufficiale.
+I metadati PyPI dicono MIT; il file sorgente e la licenza upstream dicono BSD.
+Si conserva qui il testo effettivo upstream, con i copyright di Armin Ronacher e Jonathan Tushman.

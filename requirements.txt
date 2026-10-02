@@ -8,3 +8,4 @@ pyobjc-framework-Cocoa>=9.0; sys_platform == "darwin"
 holehe>=1.61
 pytest>=8.0.0
 keyring>=25.6,<26
+certifi>=2024.2.2
